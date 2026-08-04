@@ -1,0 +1,87 @@
+# ==========================================
+# 1. Poetry & Virtual Environments
+# ==========================================
+# Local Poetry/Python virtual environments
+.venv/
+venv/
+ENV/
+env/
+*.venv
+
+# Poetry build cache
+.poetry/
+
+# NOTE: Do NOT ignore `poetry.lock` for applications/tools!
+# It should be tracked in git so everyone gets the exact same dependency versions.
+
+# ==========================================
+# 2. Python & Byte-code
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.pyd
+
+# ==========================================
+# 3. Environment Variables & Secrets (CRITICAL)
+# ==========================================
+.env
+.env.*
+!.env.example
+!.env.template
+*.pem
+*.key
+secrets.py
+
+# ==========================================
+# 4. Testing, Linters & Type Checking
+# ==========================================
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# Code Quality (Ruff, Mypy, Black)
+.ruff_cache/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# ==========================================
+# 5. Build & Distribution Outputs
+# ==========================================
+build/
+dist/
+*.egg-info/
+.eggs/
+*.egg
+
+# ==========================================
+# 6. IDEs & Editors
+# ==========================================
+# macOS / VS Code / PyCharm
+.DS_Store
+.idea/
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+*.code-workspace
+
+# Vim / Emacs
+*.swp
+*.swo
+*~
+
+# ==========================================
+# 7. Logs, Databases & Downloaded Outputs
+# ==========================================
+*.log
+*.sqlite3
+*.db
+data/
+downloads/
+output/
+tmp/
