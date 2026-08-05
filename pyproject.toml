@@ -8,8 +8,11 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "yt-dlp (>=2026.7.4,<2027.0.0)"
 ]
 
+[project.scripts]
+yt-maestro = "yt_maestro.cli:main"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
