@@ -4,6 +4,7 @@ import logging
 import math
 import os
 import subprocess
+import tempfile
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
@@ -36,7 +37,7 @@ class Chapter:
             "TIMEBASE=1/1000",
             f"START={self.start_ms}",
             f"END={self.end_ms}",
-            f"TITLE={self.title}",
+            f"TITLE={_escape_ffmetadata(self.title)}",
         )
         return "\n".join(metadata)
 
@@ -71,9 +72,14 @@ def audio_duration_ms(path: PathType) -> int:
         return 0
 
     try:
-        return math.floor(float(out) * 1000)
+        duration_seconds = float(out)
     except ValueError:
         return 0
+
+    if not math.isfinite(duration_seconds) or duration_seconds < 0:
+        return 0
+
+    return math.floor(duration_seconds * 1000)
 
 
 def trim_audio(
@@ -154,27 +160,43 @@ def add_chapters(
     :param input_path: Path to the source audio file.
     :param output_path: Path where the chaptered audio file will be written.
     :param chapters: Chapters to embed in the audio file.
-    :return: Path to the output file.
+    :return: output_path if successful, otherwise input_path.
     """
 
     input_path, output_path = os.fspath(input_path), os.fspath(output_path)
-    ffmeta_path = f"{output_path}.ffmeta"
+    if not chapters:
+        return input_path
 
-    with open(ffmeta_path, "w") as ffmeta_file:
-        print(";FFMETADATA1", file=ffmeta_file)
-        for chapter in chapters:
-            print(chapter.ffmpeg_tag(), file=ffmeta_file)
-
-    ffmpeg_cmd = _base_ffmpeg_command([input_path, ffmeta_path])
-    ffmpeg_cmd.extend(
-        ["-map_metadata", "0", "-map_chapters", "1", "-c", "copy", output_path]
+    ffmeta_file = tempfile.NamedTemporaryFile(
+        mode="w", encoding="utf-8", suffix=".ffmeta", delete=False
     )
-    _run_subprocess(ffmpeg_cmd)
+    ffmeta_path = ffmeta_file.name
+    try:
+        with ffmeta_file:
+            print(";FFMETADATA1", file=ffmeta_file)
+            for chapter in chapters:
+                print(chapter.ffmpeg_tag(), file=ffmeta_file)
 
-    if os.path.exists(ffmeta_path):
-        os.remove(ffmeta_path)
-
-    return output_path
+        ffmpeg_cmd = _base_ffmpeg_command([input_path, ffmeta_path])
+        ffmpeg_cmd.extend(
+            [
+                "-map",
+                "0",
+                "-map_metadata",
+                "0",
+                "-map_chapters",
+                "1",
+                "-c",
+                "copy",
+                output_path,
+            ]
+        )
+        return input_path if _run_subprocess(ffmpeg_cmd) is None else output_path
+    finally:
+        try:
+            os.remove(ffmeta_path)
+        except FileNotFoundError:
+            pass
 
 
 def _base_ffmpeg_command(
@@ -230,3 +252,17 @@ def _run_subprocess(cmd: Sequence[str], program: str | None = None) -> str | Non
         logging.exception("Unexpected error running %s", program)
 
     return None
+
+
+def _escape_ffmetadata(value: str) -> str:
+    """
+    Escapes a value for FFmpeg's FFMETADATA format.
+
+    :param value: Metadata value to escape.
+    :return: Escaped metadata value.
+    """
+
+    value = value.replace("\r\n", "\n").replace("\r", "\n")
+    for character in ("\\", "=", ";", "#"):
+        value = value.replace(character, f"\\{character}")
+    return value.replace("\n", "\\\n")

@@ -80,8 +80,7 @@ def download_item(spec: dict) -> str | None:
         # Trim audio from start_hhmmss to end_hhmmss
         if start_hhmmss is not None or end_hhmmss is not None:
             trim_path = audio_dir / f"trim_{audio_filename}"
-            trim_path = audio.trim_audio(download_path, trim_path,
-                                         start_ms, end_ms)
+            trim_path = audio.trim_audio(download_path, trim_path, start_ms, end_ms)
         else:
             trim_path = download_path
 
@@ -96,14 +95,15 @@ def download_item(spec: dict) -> str | None:
             chapters = extract_chapters(spec["chapters"], start_ms, end_ms)
             if chapters:
                 chapter_path = audio_dir / f"chapter_{audio_filename}"
-                chapter_path = audio.add_chapters(metadata_path,
-                                                  chapter_path, chapters)
+                chapter_path = audio.add_chapters(metadata_path, chapter_path, chapters)
 
         # Move the processed file to the directory of the artist's album
-        final_path = (audio_dir /
-                      metadata.get("artist", "Unknown Artist") /
-                      metadata.get("album", "Unknown Album") /
-                      audio_filename)
+        final_path = (
+            audio_dir
+            / metadata.get("artist", "Unknown Artist")
+            / metadata.get("album", "Unknown Album")
+            / audio_filename
+        )
         final_path.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(str(chapter_path), str(final_path))
         return str(final_path)
@@ -130,13 +130,13 @@ def download_yt_audio(url: str, title: str = None) -> str | None:
 
     download_options = {
         "format": "bestaudio/best",
-        "postprocessors": [{
-            "key": "FFmpegExtractAudio",
-            "preferredcodec": AUDIO_FORMAT,
-        }],
-        "postprocessor_args": {
-            "FFmpegExtractAudio": ["-c:a", "aac", "-b:a", "192k"]
-        },
+        "postprocessors": [
+            {
+                "key": "FFmpegExtractAudio",
+                "preferredcodec": AUDIO_FORMAT,
+            }
+        ],
+        "postprocessor_args": {"FFmpegExtractAudio": ["-c:a", "aac", "-b:a", "192k"]},
         "quiet": QUIET_YT_DLP_LOG,
         "no_warnings": QUIET_YT_DLP_LOG,
         "noplaylist": True,
@@ -191,8 +191,9 @@ def extract_metadata(spec: dict) -> dict[str, str]:
     return metadata
 
 
-def extract_chapters(ch_spec: list[dict[str, str]], file_start_ms: int,
-                     file_end_ms: int) -> list[Chapter] | None:
+def extract_chapters(
+    ch_spec: list[dict[str, str]], file_start_ms: int, file_end_ms: int
+) -> list[Chapter] | None:
     """
     Extracts a sorted list of chapters from a spec.
 
@@ -225,35 +226,43 @@ def extract_chapters(ch_spec: list[dict[str, str]], file_start_ms: int,
 
     chapters: list[Chapter] = []
     for i, (ch_start_ms, title) in enumerate(ch_spec_ms):
-        ch_end_ms = ch_spec_ms[i + 1][0] \
-            if i < len(ch_spec_ms) - 1 else file_end_ms
+        ch_end_ms = ch_spec_ms[i + 1][0] if i < len(ch_spec_ms) - 1 else file_end_ms
         if not title:
             title = f"Chapter {i + 1}"
-        chapters.append(Chapter(start_ms=ch_start_ms - file_start_ms,
-                                end_ms=ch_end_ms - file_start_ms,
-                                title=title))
+        chapters.append(
+            Chapter(
+                start_ms=ch_start_ms - file_start_ms,
+                end_ms=ch_end_ms - file_start_ms,
+                title=title,
+            )
+        )
 
     return chapters
 
 
-def validate_time_range(start_ms: int, end_ms: int, max_ms: int,
-                        min_ms: int = 0) -> bool:
+def validate_time_range(
+    start_ms: int, end_ms: int, max_ms: int, min_ms: int = 0
+) -> bool:
     """
     Validate [start_ms, end_ms) lies within [min_ms, max_ms].
     Returns True if valid, False otherwise.
     """
 
     if not (min_ms <= start_ms < max_ms):
-        logging.error(f"start_ms out of bounds: "
-                      f"start={start_ms}ms, min={min_ms}ms, max={max_ms}ms")
+        logging.error(
+            f"start_ms out of bounds: "
+            f"start={start_ms}ms, min={min_ms}ms, max={max_ms}ms"
+        )
         return False
     if not (min_ms <= end_ms <= max_ms):
-        logging.error(f"end_ms out of bounds: "
-                      f"end={end_ms}ms, min={min_ms}ms, max={max_ms}ms")
+        logging.error(
+            f"end_ms out of bounds: " f"end={end_ms}ms, min={min_ms}ms, max={max_ms}ms"
+        )
         return False
     if end_ms <= start_ms:
-        logging.error(f"invalid ordering or zero-length: "
-                      f"start={start_ms}ms, end={end_ms}ms")
+        logging.error(
+            f"invalid ordering or zero-length: " f"start={start_ms}ms, end={end_ms}ms"
+        )
         return False
 
     return True
@@ -274,14 +283,15 @@ def to_milliseconds(time_hhmmss: str | None, default_ms: int = 0) -> int:
         return default_ms
 
     try:
-        parts = [float(p) for p in parts]   # Allow fractional seconds
+        parts = [float(p) for p in parts]  # Allow fractional seconds
         while len(parts) < 3:
             parts.insert(0, 0)
         h, m, s = parts
         return round((h * 3600 + m * 60 + s) * 1000)
     except ValueError:
-        logging.error(f"Invalid timestamp: {time_hhmmss}, "
-                      f"defaulting to {default_ms}ms")
+        logging.error(
+            f"Invalid timestamp: {time_hhmmss}, " f"defaulting to {default_ms}ms"
+        )
         return default_ms
 
 
