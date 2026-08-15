@@ -63,6 +63,8 @@ dist/
 # ==========================================
 # macOS / VS Code / PyCharm
 .DS_Store
+**/.DS_Store
+._*
 .idea/
 .vscode/
 !.vscode/settings.json
