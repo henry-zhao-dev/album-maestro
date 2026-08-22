@@ -1,11 +1,10 @@
 import argparse
-import json
 import logging
 
-from yt_maestro import yt_spec
+from yt_maestro import pipeline, spec
 
 
-def main():
+def main() -> int:
     logging.basicConfig(level=logging.INFO)
 
     # Set up command-line argument parsing
@@ -19,18 +18,22 @@ def main():
     )
     args = parser.parse_args()
 
-    # Process each spec file passed via CLI
+    exit_code = 0
     for spec_path in args.spec_files:
         try:
-            with open(spec_path, encoding="utf-8") as spec_file:
-                specs = json.load(spec_file)
-        except (FileNotFoundError, json.decoder.JSONDecodeError):
-            logging.exception(f"Cannot load {spec_path}")
+            tracks = spec.load_specs(spec_path)
+        except spec.SpecError as error:
+            logging.error("Cannot load %s: %s", spec_path, error)
+            exit_code = 1
             continue
 
-        logging.info(f"Loaded {spec_path}")
-        yt_spec.download_from_spec(specs)
+        logging.info("Loaded %s", spec_path)
+        outputs = pipeline.process_specs(tracks)
+        if len(outputs) != len(tracks):
+            exit_code = 1
+
+    return exit_code
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
