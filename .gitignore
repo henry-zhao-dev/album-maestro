@@ -1,89 +1,89 @@
-# ==========================================
-# 1. Poetry & Virtual Environments
-# ==========================================
-# Local Poetry/Python virtual environments
+# Python
+__pycache__/
+*$py.class
+*.py[cod]
+*.pyd
+*.so
+
+# Virtual environments and Poetry
+.poetry/
 .venv/
-venv/
+*.venv
 ENV/
 env/
-*.venv
+venv/
 
-# Poetry build cache
-.poetry/
-
-# NOTE: Do NOT ignore `poetry.lock` for applications/tools!
-# It should be tracked in git so everyone gets the exact same dependency versions.
-
-# ==========================================
-# 2. Python & Byte-code
-# ==========================================
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-*.pyd
-
-# ==========================================
-# 3. Environment Variables & Secrets (CRITICAL)
-# ==========================================
+# Environment variables and secrets
 .env
 .env.*
 !.env.example
 !.env.template
-*.pem
 *.key
+*.pem
 secrets.py
 
-# ==========================================
-# 4. Testing, Linters & Type Checking
-# ==========================================
-.pytest_cache/
+# Tests, coverage, and code quality
 .coverage
 .coverage.*
-htmlcov/
-coverage.xml
-
-# Code Quality (Ruff, Mypy, Black)
-.ruff_cache/
-.mypy_cache/
 .dmypy.json
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+coverage.xml
 dmypy.json
+htmlcov/
 
-# ==========================================
-# 5. Build & Distribution Outputs
-# ==========================================
-build/
-dist/
-*.egg-info/
+# Build and distribution artifacts
 .eggs/
 *.egg
+*.egg-info/
+build/
+dist/
 
-# ==========================================
-# 6. IDEs & Editors
-# ==========================================
-# macOS / VS Code / PyCharm
+# Editors and operating systems
 .DS_Store
-**/.DS_Store
 ._*
 .idea/
-.vscode/
+.vscode/*
+!.vscode/launch.json
 !.vscode/settings.json
 !.vscode/tasks.json
-!.vscode/launch.json
 *.code-workspace
-
-# Vim / Emacs
-*.swp
 *.swo
+*.swp
 *~
 
-# ==========================================
-# 7. Logs, Databases & Downloaded Outputs
-# ==========================================
+# Runtime data and generated output
+*.db
 *.log
 *.sqlite3
-*.db
-data/
 downloads/
 output/
 tmp/
+
+# yt-maestro temporary directories
+.yt-maestro-*/
+
+# Audio files
+*.aac
+*.aiff
+*.alac
+*.flac
+*.m4a
+*.mp3
+*.oga
+*.ogg
+*.opus
+*.wav
+*.wma
+
+# Video files
+*.avi
+*.m4v
+*.mkv
+*.mov
+*.mp4
+*.mpeg
+*.mpg
+*.webm
+*.wmv
