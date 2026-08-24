@@ -7,6 +7,16 @@ from yt_maestro import pipeline, spec
 from yt_maestro.commands.init import run as run_init
 
 
+def main(argv: Sequence[str] | None = None) -> int:
+    logging.basicConfig(level=logging.INFO)
+    arguments = list(argv) if argv is not None else sys.argv[1:]
+
+    if arguments and arguments[0] == "init":
+        return run_init(arguments[1:])
+
+    return _run_legacy_specs(arguments)
+
+
 def _run_legacy_specs(argv: Sequence[str]) -> int:
     # Set up command-line argument parsing
     parser = argparse.ArgumentParser(
@@ -35,16 +45,6 @@ def _run_legacy_specs(argv: Sequence[str]) -> int:
             exit_code = 1
 
     return exit_code
-
-
-def main(argv: Sequence[str] | None = None) -> int:
-    logging.basicConfig(level=logging.INFO)
-    arguments = list(argv) if argv is not None else sys.argv[1:]
-
-    if arguments and arguments[0] == "init":
-        return run_init(arguments[1:])
-
-    return _run_legacy_specs(arguments)
 
 
 if __name__ == "__main__":

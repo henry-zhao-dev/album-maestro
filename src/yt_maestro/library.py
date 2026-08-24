@@ -66,37 +66,22 @@ def validate_directory_path(label: str, path: Path) -> None:
 
 
 def initialize(root: str | Path, config: LibraryConfig) -> Path:
-    """Create a Git-friendly library and return its manifest path."""
+    """Create a music library and return its manifest path."""
 
     validate_config(config)
+
     destination = Path(root).expanduser().resolve()
     manifest = destination / "yt-maestro.json"
     if manifest.exists():
         raise LibraryError(f"{manifest} already exists")
 
     destination.mkdir(parents=True, exist_ok=True)
-    for relative_dir in (config.albums_dir, config.artists_dir):
-        tracked_dir = destination / relative_dir
-        tracked_dir.mkdir(parents=True, exist_ok=True)
-        (tracked_dir / ".gitkeep").touch(exist_ok=True)
+    for relative_dir in (
+        config.albums_dir,
+        config.artists_dir,
+        config.downloads_dir,
+    ):
+        (destination / relative_dir).mkdir(parents=True, exist_ok=True)
 
-    (destination / config.downloads_dir).mkdir(parents=True, exist_ok=True)
-    manifest.write_text(json.dumps(config.as_dict(), indent=2) + "\n", encoding="utf-8")
-    _update_gitignore(destination / ".gitignore", config.downloads_dir)
+    manifest.write_text(json.dumps(config.as_dict(), indent=2), encoding="utf-8")
     return manifest
-
-
-def _update_gitignore(path: Path, downloads_dir: Path) -> None:
-    entries = [
-        f"/{downloads_dir.as_posix()}/",
-        "/.yt-maestro/",
-    ]
-    existing = path.read_text(encoding="utf-8") if path.exists() else ""
-    existing_lines = set(existing.splitlines())
-    missing = [entry for entry in entries if entry not in existing_lines]
-    if not missing:
-        return
-
-    addition = "# yt-maestro generated files\n" + "\n".join(missing) + "\n"
-    separator = "" if not existing or existing.endswith("\n") else "\n"
-    path.write_text(existing + separator + addition, encoding="utf-8")

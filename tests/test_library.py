@@ -7,7 +7,7 @@ from yt_maestro.library import LibraryConfig, LibraryError, initialize
 
 
 class InitializeLibraryTests(unittest.TestCase):
-    def test_creates_git_friendly_library(self):
+    def test_creates_library(self):
         with tempfile.TemporaryDirectory() as temporary_dir:
             root = Path(temporary_dir) / "music"
 
@@ -27,25 +27,9 @@ class InitializeLibraryTests(unittest.TestCase):
                     },
                 },
             )
-            self.assertTrue((root / "albums" / ".gitkeep").exists())
-            self.assertTrue((root / "artists" / ".gitkeep").exists())
+            self.assertTrue((root / "albums").is_dir())
+            self.assertTrue((root / "artists").is_dir())
             self.assertTrue((root / "downloads").is_dir())
-            self.assertEqual(
-                (root / ".gitignore").read_text(encoding="utf-8"),
-                "# yt-maestro generated files\n/downloads/\n/.yt-maestro/\n",
-            )
-
-    def test_preserves_existing_gitignore(self):
-        with tempfile.TemporaryDirectory() as temporary_dir:
-            root = Path(temporary_dir)
-            (root / ".gitignore").write_text(".DS_Store\n", encoding="utf-8")
-
-            initialize(root, LibraryConfig(name="Music", downloads_dir=Path("output")))
-
-            self.assertEqual(
-                (root / ".gitignore").read_text(encoding="utf-8"),
-                ".DS_Store\n# yt-maestro generated files\n/output/\n/.yt-maestro/\n",
-            )
 
     def test_refuses_to_replace_existing_manifest(self):
         with tempfile.TemporaryDirectory() as temporary_dir:
