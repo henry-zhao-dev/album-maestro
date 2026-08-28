@@ -5,6 +5,8 @@ from pathlib import Path
 
 import yt_dlp
 
+DEFAULT_AUDIO_FORMAT = "m4a"
+
 logger = logging.getLogger(__name__)
 
 
@@ -13,7 +15,7 @@ def download_audio(
     output_dir: Path,
     *,
     title: str | None = None,
-    audio_format: str = "m4a",
+    audio_format: str = DEFAULT_AUDIO_FORMAT,
     bitrate: str = "192k",
     quiet: bool = True,
 ) -> Path | None:

@@ -6,6 +6,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from yt_maestro import library, pipelines, specs
+from yt_maestro.commands import prompts
 
 logger = logging.getLogger(__name__)
 
@@ -25,14 +26,24 @@ def run(argv: Sequence[str]) -> int:
         metavar="DIRECTORY",
         help="Library directory (default: current directory)",
     )
+    download.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Overwrite existing track files without prompting",
+    )
     args = parser.parse_args(list(argv))
 
     if args.command == "download":
-        return _download(args.album_name, args.library)
+        return _download(args.album_name, args.library, overwrite=args.overwrite)
     return 2
 
 
-def _download(album_name: str, library_dir: str | Path) -> int:
+def _download(
+    album_name: str,
+    library_dir: str | Path,
+    *,
+    overwrite: bool = False,
+) -> int:
     """Load and download one named album from a library."""
 
     try:
@@ -43,7 +54,20 @@ def _download(album_name: str, library_dir: str | Path) -> int:
             root / config.albums_dir / filename,
             root / config.artists_dir,
         )
-        outputs = pipelines.download_album(album, root / config.downloads_dir)
+        destination = root / config.downloads_dir
+        existing = pipelines.existing_album_tracks(album, destination)
+        if existing:
+            logger.warning("%s track files already exist", len(existing))
+            for path in existing:
+                logger.warning("Existing track: %s", path)
+
+            if not overwrite and not prompts.confirm(
+                "Continue and overwrite existing tracks?", default=False
+            ):
+                logger.info("Album download cancelled")
+                return 0
+
+        outputs = pipelines.download_album(album, destination)
     except (library.LibraryError, specs.SpecError) as error:
         logger.error("Cannot download album %s: %s", album_name, error)
         return 1

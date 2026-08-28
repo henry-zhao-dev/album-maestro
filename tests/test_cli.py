@@ -61,30 +61,7 @@ class AlbumCommandTests(unittest.TestCase):
     def test_download_loads_album_from_library(self, download_album):
         with tempfile.TemporaryDirectory() as temporary_dir:
             root = Path(temporary_dir) / "library"
-            initialize(root, LibraryConfig(name="Music"))
-            (root / "artists" / "beethoven.json").write_text(
-                json.dumps(
-                    {
-                        "name": "Ludwig van Beethoven",
-                        "default_genre": "Classical",
-                    }
-                ),
-                encoding="utf-8",
-            )
-            (root / "albums" / "symphony.json").write_text(
-                json.dumps(
-                    {
-                        "title": "Symphony",
-                        "artist": "beethoven",
-                        "url": "https://example.com/full",
-                        "tracks": [
-                            {"title": "First", "start": "0", "end": "1:00"},
-                            {"title": "Second", "start": "1:00"},
-                        ],
-                    }
-                ),
-                encoding="utf-8",
-            )
+            _create_album_library(root)
             download_album.return_value = [Path("first.m4a"), Path("second.m4a")]
 
             result = main(["album", "download", "symphony", "--library", str(root)])
@@ -96,6 +73,66 @@ class AlbumCommandTests(unittest.TestCase):
         self.assertEqual(destination, root.resolve() / "downloads")
 
     @patch("yt_maestro.commands.album.pipelines.download_album")
+    @patch("yt_maestro.commands.album.prompts.confirm", return_value=False)
+    def test_download_confirms_before_overwriting(
+        self, confirm, download_album
+    ):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir) / "library"
+            _create_album_library(root)
+            existing = (
+                root
+                / "downloads"
+                / "Ludwig van Beethoven"
+                / "Symphony"
+                / "First.m4a"
+            )
+            existing.parent.mkdir(parents=True)
+            existing.touch()
+
+            result = main(
+                ["album", "download", "symphony", "--library", str(root)]
+            )
+
+        self.assertEqual(result, 0)
+        confirm.assert_called_once_with(
+            "Continue and overwrite existing tracks?", default=False
+        )
+        download_album.assert_not_called()
+
+    @patch("yt_maestro.commands.album.pipelines.download_album")
+    @patch("yt_maestro.commands.album.prompts.confirm")
+    def test_overwrite_option_skips_confirmation(self, confirm, download_album):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir) / "library"
+            _create_album_library(root)
+            existing = (
+                root
+                / "downloads"
+                / "Ludwig van Beethoven"
+                / "Symphony"
+                / "First.m4a"
+            )
+            existing.parent.mkdir(parents=True)
+            existing.touch()
+            download_album.return_value = [Path("first.m4a"), Path("second.m4a")]
+
+            result = main(
+                [
+                    "album",
+                    "download",
+                    "symphony",
+                    "--library",
+                    str(root),
+                    "--overwrite",
+                ]
+            )
+
+        self.assertEqual(result, 0)
+        confirm.assert_not_called()
+        download_album.assert_called_once()
+
+    @patch("yt_maestro.commands.album.pipelines.download_album")
     def test_download_reports_missing_album(self, download_album):
         with tempfile.TemporaryDirectory() as temporary_dir:
             root = Path(temporary_dir)
@@ -105,6 +142,33 @@ class AlbumCommandTests(unittest.TestCase):
 
         self.assertEqual(result, 1)
         download_album.assert_not_called()
+
+
+def _create_album_library(root: Path) -> None:
+    initialize(root, LibraryConfig(name="Music"))
+    (root / "artists" / "beethoven.json").write_text(
+        json.dumps(
+            {
+                "name": "Ludwig van Beethoven",
+                "default_genre": "Classical",
+            }
+        ),
+        encoding="utf-8",
+    )
+    (root / "albums" / "symphony.json").write_text(
+        json.dumps(
+            {
+                "title": "Symphony",
+                "artist": "beethoven",
+                "url": "https://example.com/full",
+                "tracks": [
+                    {"title": "First", "start": "0", "end": "1:00"},
+                    {"title": "Second", "start": "1:00"},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
 
 
 if __name__ == "__main__":

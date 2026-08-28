@@ -38,6 +38,20 @@ def download_album(album: Album, output_dir: str | Path = ".") -> list[Path]:
     return outputs
 
 
+def existing_album_tracks(
+    album: Album, output_dir: str | Path = "."
+) -> list[Path]:
+    """Return the output paths that already exist for an album."""
+
+    destination = Path(output_dir).expanduser().resolve()
+    suffix = f".{downloader.DEFAULT_AUDIO_FORMAT}"
+    return [
+        path
+        for track in album.requests()
+        if (path := _track_output_path(track, destination, suffix)).exists()
+    ]
+
+
 def download_tracks(
     tracks: Sequence[TrackRequest], output_dir: str | Path = "."
 ) -> list[Path]:
@@ -156,10 +170,18 @@ def _create_track(
             current, work_dir / f"chapters-{track_source.name}", chapters
         )
 
-    final_path = destination / track.album_artist / track.album / track_source.name
+    final_path = _track_output_path(track, destination, track_source.suffix)
     final_path.parent.mkdir(parents=True, exist_ok=True)
     shutil.move(current, final_path)
     return final_path
+
+
+def _track_output_path(
+    track: TrackRequest, destination: Path, suffix: str
+) -> Path:
+    """Return the final library path for a track."""
+
+    return destination / track.album_artist / track.album / f"{track.title}{suffix}"
 
 
 def resolve_time_range(track: TrackRequest, duration_ms: int) -> tuple[int, int]:
