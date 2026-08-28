@@ -23,68 +23,94 @@ def download_album(album: Album, output_dir: str | Path = ".") -> list[Path]:
 def download_tracks(
     tracks: Sequence[TrackRequest], output_dir: str | Path = "."
 ) -> list[Path]:
-    """Download tracks sequentially and return the created files."""
+    """Download each unique source once and create its requested tracks."""
 
     destination = Path(output_dir).expanduser().resolve()
     destination.mkdir(parents=True, exist_ok=True)
 
     outputs: list[Path] = []
-    for index, track in enumerate(tracks, start=1):
-        logging.info("Downloading track %s of %s", index, len(tracks))
-        try:
-            output = download_track(track, destination)
-        except PipelineError as error:
-            logging.error("cannot download track %s: %s", index, error)
-            continue
-        if output is not None:
+    sources: dict[str, Path | None] = {}
+
+    with tempfile.TemporaryDirectory(
+        prefix=".yt-maestro-", dir=destination
+    ) as temp:
+        temp_dir = Path(temp)
+
+        for index, track in enumerate(tracks, start=1):
+            if track.url not in sources:
+                source_dir = temp_dir / f"source-{len(sources) + 1}"
+                source_dir.mkdir()
+                sources[track.url] = downloader.download_audio(
+                    track.url, source_dir
+                )
+
+            source = sources[track.url]
+            if source is None:
+                continue
+
+            logging.info("Creating track %s of %s", index, len(tracks))
+            work_dir = temp_dir / f"track-{index}"
+            work_dir.mkdir()
+            try:
+                output = _create_track(track, source, destination, work_dir)
+            except PipelineError as error:
+                logging.error("cannot create track %s: %s", index, error)
+                continue
             outputs.append(output)
+
     return outputs
 
 
 def download_track(track: TrackRequest, output_dir: str | Path = ".") -> Path | None:
     """Download, transform, and organize one validated track."""
 
-    destination = Path(output_dir).expanduser().resolve()
-    destination.mkdir(parents=True, exist_ok=True)
+    outputs = download_tracks((track,), output_dir)
+    return outputs[0] if outputs else None
 
-    with tempfile.TemporaryDirectory(prefix=".yt-maestro-", dir=destination) as temp:
-        work_dir = Path(temp)
-        downloaded = downloader.download_audio(track.url, work_dir, title=track.title)
-        if downloaded is None:
-            return None
 
-        duration_ms = audio.audio_duration_ms(downloaded)
-        audio_start_ms, audio_end_ms = resolve_time_range(track, duration_ms)
-        # Each processing stage consumes the file produced by the previous one.
-        current = str(downloaded)
+def _create_track(
+    track: TrackRequest,
+    source: Path,
+    destination: Path,
+    work_dir: Path,
+) -> Path:
+    """Create one track from an already downloaded source file."""
 
-        if track.start_ms is not None or track.end_ms is not None:
-            current = audio.trim_audio(
-                current,
-                work_dir / f"trim-{downloaded.name}",
-                audio_start_ms,
-                audio_end_ms,
-            )
+    track_source = work_dir / f"{track.title}{source.suffix}"
+    shutil.copy2(source, track_source)
 
-        metadata = track.metadata()
-        current = audio.add_metadata(
-            current, work_dir / f"metadata-{downloaded.name}", metadata
+    duration_ms = audio.audio_duration_ms(track_source)
+    audio_start_ms, audio_end_ms = resolve_time_range(track, duration_ms)
+    # Each processing stage consumes the file produced by the previous one.
+    current = str(track_source)
+
+    if track.start_ms is not None or track.end_ms is not None:
+        current = audio.trim_audio(
+            current,
+            work_dir / f"trim-{track_source.name}",
+            audio_start_ms,
+            audio_end_ms,
         )
 
-        if track.chapters:
-            chapters = resolve_chapters(
-                track.chapters, audio_start_ms, audio_end_ms
-            )
-            current = audio.add_chapters(
-                current, work_dir / f"chapters-{downloaded.name}", chapters
-            )
+    metadata = track.metadata()
+    current = audio.add_metadata(
+        current, work_dir / f"metadata-{track_source.name}", metadata
+    )
 
-        final_path = (
-            destination / track.album_artist / track.album / downloaded.name
+    if track.chapters:
+        chapters = resolve_chapters(
+            track.chapters, audio_start_ms, audio_end_ms
         )
-        final_path.parent.mkdir(parents=True, exist_ok=True)
-        shutil.move(current, final_path)
-        return final_path
+        current = audio.add_chapters(
+            current, work_dir / f"chapters-{track_source.name}", chapters
+        )
+
+    final_path = (
+        destination / track.album_artist / track.album / track_source.name
+    )
+    final_path.parent.mkdir(parents=True, exist_ok=True)
+    shutil.move(current, final_path)
+    return final_path
 
 
 def resolve_time_range(track: TrackRequest, duration_ms: int) -> tuple[int, int]:
