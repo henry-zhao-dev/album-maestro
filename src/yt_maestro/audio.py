@@ -11,6 +11,8 @@ from yt_maestro.models import Chapter
 
 PathType = str | os.PathLike[str]
 
+logger = logging.getLogger(__name__)
+
 
 def audio_duration_ms(path: PathType) -> int:
     """Return the container-reported duration in milliseconds, or zero."""
@@ -142,10 +144,13 @@ def _run_command(command: Sequence[str]) -> str | None:
         output = subprocess.check_output(command, text=True, stderr=subprocess.STDOUT)
         return output.strip()
     except FileNotFoundError:
-        logging.error("%s is not installed or not in PATH", command[0])
+        logger.error("External command not found: %s", command[0])
     except subprocess.CalledProcessError as error:
-        logging.error(
-            "%s failed (exit %s): %s", command[0], error.returncode, error.output
+        logger.error(
+            "External command failed (%s, exit %s): %s",
+            command[0],
+            error.returncode,
+            error.output,
         )
     return None
 

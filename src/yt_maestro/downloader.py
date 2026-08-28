@@ -5,6 +5,8 @@ from pathlib import Path
 
 import yt_dlp
 
+logger = logging.getLogger(__name__)
+
 
 def download_audio(
     url: str,
@@ -45,5 +47,5 @@ def download_audio(
             prepared_path = Path(ydl.prepare_filename(info))
             return prepared_path.with_suffix(f".{audio_format}")
     except yt_dlp.DownloadError as error:
-        logging.error("failed to download %s: %s", url, error)
+        logger.error("Download failed for %s: %s", url, error)
         return None

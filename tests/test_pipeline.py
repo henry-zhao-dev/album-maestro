@@ -53,10 +53,7 @@ class PipelineTests(unittest.TestCase):
             result = download_track(track, output_dir)
 
         expected = (
-            Path(output_dir).resolve()
-            / "Various Artists"
-            / "Album"
-            / "Track.m4a"
+            Path(output_dir).resolve() / "Various Artists" / "Album" / "Track.m4a"
         )
         self.assertEqual(result, expected)
         download_audio.assert_called_once()
@@ -78,7 +75,10 @@ class PipelineTests(unittest.TestCase):
             _track_request(title="Second", url="https://example.com/shared"),
         )
 
-        with tempfile.TemporaryDirectory() as output_dir:
+        with (
+            tempfile.TemporaryDirectory() as output_dir,
+            self.assertLogs("yt_maestro.pipelines.album", level="INFO") as logs,
+        ):
             outputs = download_tracks(tracks, output_dir)
 
         self.assertEqual(outputs, [Path("first.m4a"), Path("second.m4a")])
@@ -87,6 +87,10 @@ class PipelineTests(unittest.TestCase):
             [call.args[1] for call in create_track.call_args_list],
             [source, source],
         )
+        messages = [record.getMessage() for record in logs.records]
+        self.assertTrue(messages[0].startswith("Downloading source 1/1"))
+        self.assertEqual(messages[2], "Creating track 1/2: First")
+        self.assertEqual(messages[4], "Creating track 2/2: Second")
 
     def test_resolves_default_time_range(self):
         self.assertEqual(resolve_time_range(_track_request(), 10_000), (0, 10_000))

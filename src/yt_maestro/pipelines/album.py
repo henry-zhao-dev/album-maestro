@@ -3,11 +3,15 @@
 import logging
 import shutil
 import tempfile
+import time
+from collections import Counter
 from collections.abc import Sequence
 from pathlib import Path
 
 from yt_maestro import audio, downloader
 from yt_maestro.models import Album, Chapter, TrackRequest
+
+logger = logging.getLogger(__name__)
 
 
 class PipelineError(ValueError):
@@ -17,7 +21,21 @@ class PipelineError(ValueError):
 def download_album(album: Album, output_dir: str | Path = ".") -> list[Path]:
     """Download, transform, and organize every track in an album."""
 
-    return download_tracks(album.requests(), output_dir)
+    started_at = time.monotonic()
+    logger.info('Downloading album "%s" (%s tracks)', album.title, len(album.tracks))
+
+    outputs = download_tracks(album.requests(), output_dir)
+
+    message = 'Finished album "%s" in %.1fs (%s/%s tracks created)'
+    log = logger.info if len(outputs) == len(album.tracks) else logger.warning
+    log(
+        message,
+        album.title,
+        time.monotonic() - started_at,
+        len(outputs),
+        len(album.tracks),
+    )
+    return outputs
 
 
 def download_tracks(
@@ -30,33 +48,68 @@ def download_tracks(
 
     outputs: list[Path] = []
     sources: dict[str, Path | None] = {}
+    source_counts = Counter(track.url for track in tracks)
+    source_numbers = {url: index for index, url in enumerate(source_counts, start=1)}
 
-    with tempfile.TemporaryDirectory(
-        prefix=".yt-maestro-", dir=destination
-    ) as temp:
+    with tempfile.TemporaryDirectory(prefix=".yt-maestro-", dir=destination) as temp:
         temp_dir = Path(temp)
 
         for index, track in enumerate(tracks, start=1):
             if track.url not in sources:
+                source_number = source_numbers[track.url]
+                logger.info(
+                    "Downloading source %s/%s (%s tracks)",
+                    source_number,
+                    len(source_counts),
+                    source_counts[track.url],
+                )
+                logger.debug("Source %s URL: %s", source_number, track.url)
+                source_started_at = time.monotonic()
                 source_dir = temp_dir / f"source-{len(sources) + 1}"
                 source_dir.mkdir()
-                sources[track.url] = downloader.download_audio(
-                    track.url, source_dir
-                )
+                sources[track.url] = downloader.download_audio(track.url, source_dir)
+                if sources[track.url] is None:
+                    logger.error(
+                        "Source %s/%s failed; %s tracks will be skipped",
+                        source_number,
+                        len(source_counts),
+                        source_counts[track.url],
+                    )
+                else:
+                    logger.info(
+                        "Downloaded source %s/%s in %.1fs",
+                        source_number,
+                        len(source_counts),
+                        time.monotonic() - source_started_at,
+                    )
 
             source = sources[track.url]
             if source is None:
                 continue
 
-            logging.info("Creating track %s of %s", index, len(tracks))
+            logger.info("Creating track %s/%s: %s", index, len(tracks), track.title)
+            track_started_at = time.monotonic()
             work_dir = temp_dir / f"track-{index}"
             work_dir.mkdir()
             try:
                 output = _create_track(track, source, destination, work_dir)
             except PipelineError as error:
-                logging.error("cannot create track %s: %s", index, error)
+                logger.error(
+                    "Cannot create track %s/%s (%s): %s",
+                    index,
+                    len(tracks),
+                    track.title,
+                    error,
+                )
                 continue
             outputs.append(output)
+            logger.info(
+                "Created track %s/%s in %.1fs: %s",
+                index,
+                len(tracks),
+                time.monotonic() - track_started_at,
+                output,
+            )
 
     return outputs
 
@@ -98,16 +151,12 @@ def _create_track(
     )
 
     if track.chapters:
-        chapters = resolve_chapters(
-            track.chapters, audio_start_ms, audio_end_ms
-        )
+        chapters = resolve_chapters(track.chapters, audio_start_ms, audio_end_ms)
         current = audio.add_chapters(
             current, work_dir / f"chapters-{track_source.name}", chapters
         )
 
-    final_path = (
-        destination / track.album_artist / track.album / track_source.name
-    )
+    final_path = destination / track.album_artist / track.album / track_source.name
     final_path.parent.mkdir(parents=True, exist_ok=True)
     shutil.move(current, final_path)
     return final_path
@@ -143,9 +192,7 @@ def resolve_chapters(
     resolved: list[Chapter] = []
     for index, chapter in enumerate(chapters):
         next_start_ms = (
-            chapters[index + 1].start_ms
-            if index + 1 < len(chapters)
-            else audio_end_ms
+            chapters[index + 1].start_ms if index + 1 < len(chapters) else audio_end_ms
         )
 
         # A trimmed output starts at zero, so shift source timestamps by the

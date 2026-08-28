@@ -9,6 +9,8 @@ from pathlib import Path
 from yt_maestro import library
 from yt_maestro.commands import prompts
 
+logger = logging.getLogger(__name__)
+
 
 def run(argv: Sequence[str]) -> int:
     """Initialize a yt-maestro library from command-line arguments."""
@@ -80,7 +82,7 @@ def run(argv: Sequence[str]) -> int:
     try:
         manifest = library.initialize(root, config)
     except library.LibraryError as error:
-        logging.error("Cannot initialize library: %s", error)
+        logger.error("Cannot initialize library: %s", error)
         return 1
 
     print(f"Created yt-maestro library at {manifest.parent}")

@@ -7,6 +7,8 @@ from pathlib import Path
 
 from yt_maestro import library, pipelines, specs
 
+logger = logging.getLogger(__name__)
+
 
 def run(argv: Sequence[str]) -> int:
     """Run an ``yt-maestro album`` subcommand."""
@@ -15,9 +17,7 @@ def run(argv: Sequence[str]) -> int:
         prog="yt-maestro album", description="Work with albums in a music library."
     )
     commands = parser.add_subparsers(dest="command", required=True)
-    download = commands.add_parser(
-        "download", help="Download every track in an album."
-    )
+    download = commands.add_parser("download", help="Download every track in an album.")
     download.add_argument("album_name", help="Album filename without .json")
     download.add_argument(
         "--library",
@@ -45,11 +45,10 @@ def _download(album_name: str, library_dir: str | Path) -> int:
         )
         outputs = pipelines.download_album(album, root / config.downloads_dir)
     except (library.LibraryError, specs.SpecError) as error:
-        logging.error("Cannot download album %s: %s", album_name, error)
+        logger.error("Cannot download album %s: %s", album_name, error)
         return 1
 
     expected = len(album.tracks)
-    logging.info("Created %s of %s album tracks", len(outputs), expected)
     return 0 if len(outputs) == expected else 1
 
 
