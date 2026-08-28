@@ -17,5 +17,5 @@ Pass a directory to create the library, or disable prompts for scripts:
 yt-maestro init music --no-interaction
 ```
 
-The initialized library contains a versioned `yt-maestro.json` manifest plus
+The initialized library contains a `yt-maestro.json` manifest plus
 `albums/`, `artists/`, and `downloads/` directories.

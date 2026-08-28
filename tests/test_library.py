@@ -17,7 +17,6 @@ class InitializeLibraryTests(unittest.TestCase):
             self.assertEqual(
                 json.loads(manifest.read_text(encoding="utf-8")),
                 {
-                    "schema_version": 1,
                     "kind": "library",
                     "name": "My Music",
                     "paths": {

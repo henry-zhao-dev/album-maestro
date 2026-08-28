@@ -26,7 +26,6 @@ class LibraryConfig:
         """Return the JSON-compatible representation of this configuration."""
 
         return {
-            "schema_version": 1,
             "kind": "library",
             "name": self.name,
             "paths": {
