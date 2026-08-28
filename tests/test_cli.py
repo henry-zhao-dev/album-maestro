@@ -5,6 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from yt_maestro.cli import main
+from yt_maestro.library import LibraryConfig, initialize
 
 
 class InitCommandTests(unittest.TestCase):
@@ -53,6 +54,61 @@ class InitCommandTests(unittest.TestCase):
             self.assertEqual(result, 0)
             config = json.loads((root / "yt-maestro.json").read_text(encoding="utf-8"))
             self.assertEqual(config["paths"]["albums"], "records")
+
+
+class AlbumCommandTests(unittest.TestCase):
+    @patch("yt_maestro.commands.album.album_pipeline.process_album")
+    def test_download_loads_album_from_library(self, process_album):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir) / "library"
+            initialize(root, LibraryConfig(name="Music"))
+            (root / "artists" / "beethoven.json").write_text(
+                json.dumps(
+                    {
+                        "name": "Ludwig van Beethoven",
+                        "default_genre": "Classical",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (root / "albums" / "symphony.json").write_text(
+                json.dumps(
+                    {
+                        "title": "Symphony",
+                        "artist": "beethoven",
+                        "url": "https://example.com/full",
+                        "tracks": [
+                            {"title": "First", "start": "0", "end": "1:00"},
+                            {"title": "Second", "start": "1:00"},
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            process_album.return_value = [Path("first.m4a"), Path("second.m4a")]
+
+            result = main(
+                ["album", "download", "symphony", "--library", str(root)]
+            )
+
+        self.assertEqual(result, 0)
+        album, destination = process_album.call_args.args
+        self.assertEqual(album.title, "Symphony")
+        self.assertEqual(album.album_artist.name, "Ludwig van Beethoven")
+        self.assertEqual(destination, root.resolve() / "downloads")
+
+    @patch("yt_maestro.commands.album.album_pipeline.process_album")
+    def test_download_reports_missing_album(self, process_album):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir)
+            initialize(root, LibraryConfig(name="Music"))
+
+            result = main(
+                ["album", "download", "missing", "--library", str(root)]
+            )
+
+        self.assertEqual(result, 1)
+        process_album.assert_not_called()
 
 
 if __name__ == "__main__":

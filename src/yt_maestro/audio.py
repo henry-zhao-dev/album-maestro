@@ -145,6 +145,8 @@ def _run_command(command: Sequence[str]) -> str | None:
 
 
 def _chapter_tag(chapter: Chapter) -> str:
+    if chapter.end_ms is None or chapter.title is None:
+        raise ValueError("chapter must have a title and end time before embedding")
     return "\n".join(
         (
             "[CHAPTER]",
