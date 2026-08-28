@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from yt_maestro.models import Artist
-from yt_maestro.specs._validation import (
+from yt_maestro.specs._parsing import (
     SpecError,
     load_json,
     optional_string,

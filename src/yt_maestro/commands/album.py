@@ -5,8 +5,7 @@ import logging
 from collections.abc import Sequence
 from pathlib import Path
 
-from yt_maestro import library, specs
-from yt_maestro.pipelines import album as album_pipeline
+from yt_maestro import library, pipelines, specs
 
 
 def run(argv: Sequence[str]) -> int:
@@ -17,7 +16,7 @@ def run(argv: Sequence[str]) -> int:
     )
     commands = parser.add_subparsers(dest="command", required=True)
     download = commands.add_parser(
-        "download", help="Download and process every track in an album."
+        "download", help="Download every track in an album."
     )
     download.add_argument("album_name", help="Album filename without .json")
     download.add_argument(
@@ -34,6 +33,8 @@ def run(argv: Sequence[str]) -> int:
 
 
 def _download(album_name: str, library_dir: str | Path) -> int:
+    """Load and download one named album from a library."""
+
     try:
         filename = _album_filename(album_name)
         root = Path(library_dir).expanduser().resolve()
@@ -42,7 +43,7 @@ def _download(album_name: str, library_dir: str | Path) -> int:
             root / config.albums_dir / filename,
             root / config.artists_dir,
         )
-        outputs = album_pipeline.process_album(album, root / config.downloads_dir)
+        outputs = pipelines.download_album(album, root / config.downloads_dir)
     except (library.LibraryError, specs.SpecError) as error:
         logging.error("Cannot download album %s: %s", album_name, error)
         return 1
@@ -53,7 +54,11 @@ def _download(album_name: str, library_dir: str | Path) -> int:
 
 
 def _album_filename(album_name: str) -> str:
+    """Normalize an album name to a safe JSON filename."""
+
     path = Path(album_name)
+    # Album names select files inside the configured album directory; accepting
+    # path components here would let callers escape that boundary.
     if path.name != album_name or album_name in {"", ".", ".."}:
         raise specs.SpecError("album name must be a filename, not a path")
     if path.suffix and path.suffix != ".json":

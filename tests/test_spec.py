@@ -109,9 +109,7 @@ class AlbumTests(unittest.TestCase):
                     {
                         "title": "Symphony",
                         "artist": "beethoven",
-                        "tracks": [
-                            {"title": "Movement", "url": "https://example.com"}
-                        ],
+                        "tracks": [{"title": "Movement", "url": "https://example.com"}],
                     }
                 ),
                 encoding="utf-8",

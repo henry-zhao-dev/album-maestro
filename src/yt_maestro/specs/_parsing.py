@@ -1,4 +1,4 @@
-"""Shared JSON and field validation for catalog specifications."""
+"""Shared parsing helpers for catalog specifications."""
 
 import json
 import math

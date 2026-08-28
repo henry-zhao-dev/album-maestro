@@ -6,7 +6,7 @@ from unittest.mock import patch
 from yt_maestro.models import Chapter, TrackRequest
 from yt_maestro.pipelines.album import (
     PipelineError,
-    process_track,
+    download_track,
     resolve_chapters,
     resolve_time_range,
 )
@@ -22,9 +22,7 @@ class PipelineTests(unittest.TestCase):
         "yt_maestro.pipelines.album.audio.add_metadata",
         return_value="metadata.m4a",
     )
-    @patch(
-        "yt_maestro.pipelines.album.audio.trim_audio", return_value="trimmed.m4a"
-    )
+    @patch("yt_maestro.pipelines.album.audio.trim_audio", return_value="trimmed.m4a")
     @patch("yt_maestro.pipelines.album.audio.audio_duration_ms", return_value=20_000)
     @patch("yt_maestro.pipelines.album.downloader.download_audio")
     def test_runs_processing_stages_in_order(
@@ -49,13 +47,10 @@ class PipelineTests(unittest.TestCase):
                 chapters=(Chapter(1_000, "Opening"),),
             )
 
-            result = process_track(track, output_dir)
+            result = download_track(track, output_dir)
 
         expected = (
-            Path(output_dir).resolve()
-            / "Various Artists"
-            / "Album"
-            / "downloaded.m4a"
+            Path(output_dir).resolve() / "Various Artists" / "Album" / "downloaded.m4a"
         )
         self.assertEqual(result, expected)
         download_audio.assert_called_once()
@@ -66,9 +61,7 @@ class PipelineTests(unittest.TestCase):
         move.assert_called_once_with("chaptered.m4a", result)
 
     def test_resolves_default_time_range(self):
-        self.assertEqual(
-            resolve_time_range(_track_request(), 10_000), (0, 10_000)
-        )
+        self.assertEqual(resolve_time_range(_track_request(), 10_000), (0, 10_000))
 
     def test_rejects_range_outside_recording(self):
         track = _track_request(end_ms=11_000)
@@ -78,8 +71,8 @@ class PipelineTests(unittest.TestCase):
     def test_resolves_chapters_relative_to_trim(self):
         chapters = resolve_chapters(
             (Chapter(10_000, "One"), Chapter(15_000)),
-            start_ms=10_000,
-            end_ms=20_000,
+            audio_start_ms=10_000,
+            audio_end_ms=20_000,
         )
         self.assertEqual(chapters[0].start_ms, 0)
         self.assertEqual(chapters[0].end_ms, 5_000)

@@ -57,8 +57,8 @@ class InitCommandTests(unittest.TestCase):
 
 
 class AlbumCommandTests(unittest.TestCase):
-    @patch("yt_maestro.commands.album.album_pipeline.process_album")
-    def test_download_loads_album_from_library(self, process_album):
+    @patch("yt_maestro.commands.album.pipelines.download_album")
+    def test_download_loads_album_from_library(self, download_album):
         with tempfile.TemporaryDirectory() as temporary_dir:
             root = Path(temporary_dir) / "library"
             initialize(root, LibraryConfig(name="Music"))
@@ -85,30 +85,26 @@ class AlbumCommandTests(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
-            process_album.return_value = [Path("first.m4a"), Path("second.m4a")]
+            download_album.return_value = [Path("first.m4a"), Path("second.m4a")]
 
-            result = main(
-                ["album", "download", "symphony", "--library", str(root)]
-            )
+            result = main(["album", "download", "symphony", "--library", str(root)])
 
         self.assertEqual(result, 0)
-        album, destination = process_album.call_args.args
+        album, destination = download_album.call_args.args
         self.assertEqual(album.title, "Symphony")
         self.assertEqual(album.album_artist.name, "Ludwig van Beethoven")
         self.assertEqual(destination, root.resolve() / "downloads")
 
-    @patch("yt_maestro.commands.album.album_pipeline.process_album")
-    def test_download_reports_missing_album(self, process_album):
+    @patch("yt_maestro.commands.album.pipelines.download_album")
+    def test_download_reports_missing_album(self, download_album):
         with tempfile.TemporaryDirectory() as temporary_dir:
             root = Path(temporary_dir)
             initialize(root, LibraryConfig(name="Music"))
 
-            result = main(
-                ["album", "download", "missing", "--library", str(root)]
-            )
+            result = main(["album", "download", "missing", "--library", str(root)])
 
         self.assertEqual(result, 1)
-        process_album.assert_not_called()
+        download_album.assert_not_called()
 
 
 if __name__ == "__main__":

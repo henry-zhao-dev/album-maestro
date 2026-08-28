@@ -98,6 +98,8 @@ def add_chapters(
             for chapter in chapters:
                 print(_chapter_tag(chapter), file=metadata_file)
 
+        # Preserve tags from the audio input while taking chapters from the
+        # generated ffmetadata input.
         command = _base_command([input_path, metadata_path])
         command.extend(
             [
@@ -121,6 +123,8 @@ def add_chapters(
 
 
 def _base_command(input_paths: Sequence[PathType], *, quiet: bool = True) -> list[str]:
+    """Build the common portion of an FFmpeg command."""
+
     command = ["ffmpeg", "-y"]
     if quiet:
         command.extend(["-v", "error"])
@@ -130,6 +134,8 @@ def _base_command(input_paths: Sequence[PathType], *, quiet: bool = True) -> lis
 
 
 def _run_command(command: Sequence[str]) -> str | None:
+    """Run a media command and return its output, or ``None`` on failure."""
+
     if not command:
         return None
     try:
@@ -145,6 +151,8 @@ def _run_command(command: Sequence[str]) -> str | None:
 
 
 def _chapter_tag(chapter: Chapter) -> str:
+    """Render one resolved chapter in FFmpeg metadata format."""
+
     if chapter.end_ms is None or chapter.title is None:
         raise ValueError("chapter must have a title and end time before embedding")
     return "\n".join(
@@ -159,6 +167,8 @@ def _chapter_tag(chapter: Chapter) -> str:
 
 
 def _escape_metadata(value: str) -> str:
+    """Escape characters with special meaning in FFmpeg metadata."""
+
     value = value.replace("\r\n", "\n").replace("\r", "\n")
     for character in ("\\", "=", ";", "#"):
         value = value.replace(character, f"\\{character}")

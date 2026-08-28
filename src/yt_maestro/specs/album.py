@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from yt_maestro.models import Album, AlbumTrack, Artist, Chapter
-from yt_maestro.specs._validation import (
+from yt_maestro.specs._parsing import (
     SpecError,
     artist_id,
     load_json,
@@ -24,6 +24,8 @@ def load_album(path: str | Path, artists_dir: str | Path) -> Album:
     if not isinstance(data, Mapping):
         raise SpecError("album must be an object")
 
+    # Resolve every reference up front so parsing can work with Artist objects
+    # rather than repeatedly reading artist files track by track.
     artist_ids = {artist_id(data)}
     tracks_data = data.get("tracks")
     if isinstance(tracks_data, list):
@@ -45,9 +47,7 @@ def parse_album(data: Any, artists: Mapping[str, Artist]) -> Album:
 
     if not isinstance(data, Mapping):
         raise SpecError("album must be an object")
-    reject_unknown_fields(
-        data, {"title", "artist", "genre", "url", "tracks"}, "album"
-    )
+    reject_unknown_fields(data, {"title", "artist", "genre", "url", "tracks"}, "album")
 
     album_artist = _resolve_artist(data, artists)
     album_url = optional_string(data, "url")
@@ -74,6 +74,8 @@ def parse_album(data: Any, artists: Mapping[str, Artist]) -> Album:
 def _parse_track(
     data: Any, album_url: str | None, artists: Mapping[str, Artist]
 ) -> AlbumTrack:
+    """Validate one track, retaining optional album-level overrides."""
+
     if not isinstance(data, Mapping):
         raise SpecError("must be an object")
     reject_unknown_fields(
@@ -92,9 +94,7 @@ def _parse_track(
     return AlbumTrack(
         title=required_string(data, "title"),
         artist=(
-            _resolve_artist(data, artists)
-            if data.get("artist") is not None
-            else None
+            _resolve_artist(data, artists) if data.get("artist") is not None else None
         ),
         url=url,
         start_ms=start_ms,
@@ -104,6 +104,8 @@ def _parse_track(
 
 
 def _parse_chapters(data: Any) -> list[Chapter]:
+    """Validate and chronologically order source-relative chapter markers."""
+
     if not isinstance(data, list):
         raise SpecError("'chapters' must be a list")
 
@@ -121,15 +123,16 @@ def _parse_chapters(data: Any) -> list[Chapter]:
             )
         )
 
+    # JSON order is not required to be chronological, but chapter output is.
     chapters.sort(key=lambda chapter: chapter.start_ms)
     if len({chapter.start_ms for chapter in chapters}) != len(chapters):
         raise SpecError("chapter start times must be unique")
     return chapters
 
 
-def _resolve_artist(
-    data: Mapping[str, Any], artists: Mapping[str, Artist]
-) -> Artist:
+def _resolve_artist(data: Mapping[str, Any], artists: Mapping[str, Artist]) -> Artist:
+    """Replace an artist ID with its previously loaded catalog entry."""
+
     reference = artist_id(data)
     try:
         return artists[reference]

@@ -60,6 +60,7 @@ def validate_config(config: LibraryConfig) -> None:
 def validate_directory_path(label: str, path: Path) -> None:
     """Validate one directory path stored in a library configuration."""
 
+    # All configured directories must remain beneath the library root.
     if not str(path) or path.is_absolute() or ".." in path.parts or path == Path("."):
         raise LibraryError(
             f"{label} must be a relative path to a directory within the library"
@@ -119,6 +120,8 @@ def load_config(root: str | Path = ".") -> LibraryConfig:
 
 
 def _required_string(data: Mapping[str, Any], key: str) -> str:
+    """Read a required, non-empty manifest string."""
+
     value = data.get(key)
     if not isinstance(value, str) or not value.strip():
         raise LibraryError(f"'{key}' must be a non-empty string")

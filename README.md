@@ -20,6 +20,39 @@ yt-maestro init music --no-interaction
 The initialized library contains a `yt-maestro.json` manifest plus
 `albums/`, `artists/`, and `downloads/` directories.
 
+## Artists
+
+An artist file defines reusable metadata. Its filename without `.json` is the
+canonical artist ID used by album files:
+
+```text
+artists/beethoven.json
+```
+
+```json
+{
+  "name": "Ludwig van Beethoven",
+  "default_genre": "Classical"
+}
+```
+
+The ID is a stable configuration reference, while `name` is the display value
+written to audio metadata. `default_genre` is used when an album does not
+provide its own genre. An album therefore references the artist without
+repeating its metadata:
+
+```json
+{
+  "title": "Symphony No. 5",
+  "artist": "beethoven"
+}
+```
+
+Artist aliases are not part of the schema yet. A future CLI may accept aliases
+or display names as user input, but it should resolve them to the canonical ID
+before writing album JSON. Ambiguous matches should be presented to the user
+rather than guessed.
+
 ## Download an album
 
 From a library directory, download an album by its filename without `.json`:
@@ -32,15 +65,6 @@ Use `--library` when running the command elsewhere:
 
 ```shell
 yt-maestro album download beethoven-symphony-no-5 --library ~/Music
-```
-
-An artist file such as `artists/beethoven.json` provides shared metadata:
-
-```json
-{
-  "name": "Ludwig van Beethoven",
-  "default_genre": "Classical"
-}
 ```
 
 An album may use one shared source recording:
@@ -61,3 +85,22 @@ For ordinary albums, omit the shared URL and provide `url` on each track.
 Tracks may also provide an `artist` ID; otherwise they inherit the album artist.
 This allows compilation albums to use an album artist such as `various-artists`
 while retaining each track's individual credit.
+
+```json
+{
+  "title": "Best of Romantic",
+  "artist": "various-artists",
+  "tracks": [
+    {
+      "title": "Symphony No. 5",
+      "artist": "beethoven",
+      "url": "https://youtu.be/beethoven-recording"
+    },
+    {
+      "title": "Hungarian Dance No. 5",
+      "artist": "brahms",
+      "url": "https://youtu.be/brahms-recording"
+    }
+  ]
+}
+```

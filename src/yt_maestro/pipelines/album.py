@@ -1,4 +1,4 @@
-"""Pipeline for downloading and processing complete albums."""
+"""Pipeline for downloading and building complete albums."""
 
 import logging
 import shutil
@@ -11,38 +11,38 @@ from yt_maestro.models import Album, Chapter, TrackRequest
 
 
 class PipelineError(ValueError):
-    """Raised when validated catalog data cannot be processed into audio."""
+    """Raised when catalog data cannot be transformed into output audio."""
 
 
-def process_album(album: Album, output_dir: str | Path = ".") -> list[Path]:
-    """Resolve and process every track in an album."""
+def download_album(album: Album, output_dir: str | Path = ".") -> list[Path]:
+    """Download, transform, and organize every track in an album."""
 
-    return process_requests(album.requests(), output_dir)
+    return download_tracks(album.requests(), output_dir)
 
 
-def process_requests(
+def download_tracks(
     tracks: Sequence[TrackRequest], output_dir: str | Path = "."
 ) -> list[Path]:
-    """Process tracks sequentially and return the successfully created files."""
+    """Download tracks sequentially and return the created files."""
 
     destination = Path(output_dir).expanduser().resolve()
     destination.mkdir(parents=True, exist_ok=True)
 
     outputs: list[Path] = []
     for index, track in enumerate(tracks, start=1):
-        logging.info("Processing %s of %s", index, len(tracks))
+        logging.info("Downloading track %s of %s", index, len(tracks))
         try:
-            output = process_track(track, destination)
+            output = download_track(track, destination)
         except PipelineError as error:
-            logging.error("cannot process track %s: %s", index, error)
+            logging.error("cannot download track %s: %s", index, error)
             continue
         if output is not None:
             outputs.append(output)
     return outputs
 
 
-def process_track(track: TrackRequest, output_dir: str | Path = ".") -> Path | None:
-    """Download, process, and organize one validated track."""
+def download_track(track: TrackRequest, output_dir: str | Path = ".") -> Path | None:
+    """Download, transform, and organize one validated track."""
 
     destination = Path(output_dir).expanduser().resolve()
     destination.mkdir(parents=True, exist_ok=True)
@@ -54,12 +54,16 @@ def process_track(track: TrackRequest, output_dir: str | Path = ".") -> Path | N
             return None
 
         duration_ms = audio.audio_duration_ms(downloaded)
-        start_ms, end_ms = resolve_time_range(track, duration_ms)
+        audio_start_ms, audio_end_ms = resolve_time_range(track, duration_ms)
+        # Each processing stage consumes the file produced by the previous one.
         current = str(downloaded)
 
         if track.start_ms is not None or track.end_ms is not None:
             current = audio.trim_audio(
-                current, work_dir / f"trim-{downloaded.name}", start_ms, end_ms
+                current,
+                work_dir / f"trim-{downloaded.name}",
+                audio_start_ms,
+                audio_end_ms,
             )
 
         metadata = track.metadata()
@@ -68,16 +72,16 @@ def process_track(track: TrackRequest, output_dir: str | Path = ".") -> Path | N
         )
 
         if track.chapters:
-            chapters = resolve_chapters(track.chapters, start_ms, end_ms)
+            chapters = resolve_chapters(
+                track.chapters, audio_start_ms, audio_end_ms
+            )
             current = audio.add_chapters(
                 current, work_dir / f"chapters-{downloaded.name}", chapters
             )
 
-        artist = metadata.get(
-            "album_artist", metadata.get("artist", "Unknown Artist")
+        final_path = (
+            destination / track.album_artist / track.album / downloaded.name
         )
-        album = metadata.get("album", "Unknown Album")
-        final_path = destination / artist / album / downloaded.name
         final_path.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(current, final_path)
         return final_path
@@ -100,26 +104,32 @@ def resolve_time_range(track: TrackRequest, duration_ms: int) -> tuple[int, int]
 
 
 def resolve_chapters(
-    chapters: Sequence[Chapter], start_ms: int, end_ms: int
+    chapters: Sequence[Chapter], audio_start_ms: int, audio_end_ms: int
 ) -> list[Chapter]:
-    """Convert source-relative chapter declarations to output timestamps."""
+    """Resolve chapters within the selected range of the source audio file."""
 
     for chapter in chapters:
-        if not start_ms <= chapter.start_ms < end_ms:
+        if not audio_start_ms <= chapter.start_ms < audio_end_ms:
             raise PipelineError(
                 f"chapter at {chapter.start_ms}ms is outside the selected time range"
             )
 
-    return [
-        Chapter(
-            start_ms=chapter.start_ms - start_ms,
-            end_ms=(
-                chapters[index + 1].start_ms
-                if index + 1 < len(chapters)
-                else end_ms
-            )
-            - start_ms,
-            title=chapter.title or f"Chapter {index + 1}",
+    resolved: list[Chapter] = []
+    for index, chapter in enumerate(chapters):
+        next_start_ms = (
+            chapters[index + 1].start_ms
+            if index + 1 < len(chapters)
+            else audio_end_ms
         )
-        for index, chapter in enumerate(chapters)
-    ]
+
+        # A trimmed output starts at zero, so shift source timestamps by the
+        # beginning of the selected range.
+        resolved.append(
+            Chapter(
+                start_ms=chapter.start_ms - audio_start_ms,
+                end_ms=next_start_ms - audio_start_ms,
+                title=chapter.title or f"Chapter {index + 1}",
+            )
+        )
+
+    return resolved
