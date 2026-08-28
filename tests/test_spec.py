@@ -1,53 +1,134 @@
+import json
+import tempfile
 import unittest
+from pathlib import Path
 
-from yt_maestro.models import ChapterSpec, TrackSpec
-from yt_maestro.spec import (
+from yt_maestro.models import Artist
+from yt_maestro.specs import (
     SpecError,
-    parse_specs,
+    load_album,
+    parse_album,
     parse_timestamp,
-    resolve_chapters,
-    resolve_time_range,
 )
 
 
-class ParseSpecsTests(unittest.TestCase):
-    def test_parses_and_normalizes_track(self):
-        tracks = parse_specs(
-            [
-                {
-                    "url": " https://example.com/watch?v=1 ",
-                    "composer": " Johann Sebastian Bach ",
-                    "start": "1:02.5",
-                    "chapters": [
-                        {"start": "1:30", "title": " Second "},
-                        {"start": "1:02.5", "title": " First "},
-                    ],
-                }
-            ]
+class AlbumTests(unittest.TestCase):
+    def test_resolves_shared_url_into_numbered_track_requests(self):
+        artist = Artist("Ludwig van Beethoven", "Classical")
+        album = parse_album(
+            {
+                "title": "Symphony No. 5",
+                "artist": "beethoven",
+                "url": "https://example.com/full",
+                "tracks": [
+                    {"title": "I. Allegro", "start": "0:04", "end": "8:30"},
+                    {"title": "II. Andante", "start": "8:30"},
+                ],
+            },
+            {"beethoven": artist},
         )
 
-        track = tracks[0]
-        self.assertEqual(track.url, "https://example.com/watch?v=1")
-        self.assertEqual(track.start_ms, 62_500)
+        tracks = album.requests()
+
+        self.assertIs(album.album_artist, artist)
+        self.assertEqual(tracks[0].url, "https://example.com/full")
+        self.assertEqual(tracks[0].track_number, 1)
+        self.assertEqual(tracks[0].track_total, 2)
+        self.assertEqual(tracks[0].metadata()["track"], "1/2")
+        self.assertEqual(tracks[1].start_ms, 510_000)
+
+    def test_supports_a_different_url_for_each_track(self):
+        album = parse_album(
+            {
+                "title": "Songs",
+                "artist": "artist",
+                "tracks": [
+                    {"title": "One", "url": "https://example.com/one"},
+                    {"title": "Two", "url": "https://example.com/two"},
+                ],
+            },
+            {"artist": Artist("Artist")},
+        )
+
         self.assertEqual(
-            [chapter.title for chapter in track.chapters], ["First", "Second"]
+            [track.url for track in album.requests()],
+            ["https://example.com/one", "https://example.com/two"],
         )
-        self.assertEqual(track.metadata()["artist"], "Johann Sebastian Bach")
-        self.assertEqual(track.metadata()["album"], "Bach")
 
-    def test_reports_track_number_for_invalid_track(self):
-        with self.assertRaisesRegex(SpecError, "track 2: 'url'"):
-            parse_specs([{"url": "https://example.com"}, {"url": ""}])
-
-    def test_rejects_duplicate_chapter_starts(self):
-        with self.assertRaisesRegex(SpecError, "must be unique"):
-            parse_specs(
-                [
+    def test_resolves_track_artists_for_a_compilation(self):
+        album = parse_album(
+            {
+                "title": "Best of Romantic",
+                "artist": "various-artists",
+                "tracks": [
                     {
-                        "url": "https://example.com",
-                        "chapters": [{"start": "1"}, {"start": "1.0"}],
+                        "title": "Brahms",
+                        "artist": "brahms",
+                        "url": "https://example.com/brahms",
+                    },
+                    {
+                        "title": "Schubert",
+                        "artist": "schubert",
+                        "url": "https://example.com/schubert",
+                    },
+                ],
+            },
+            {
+                "various-artists": Artist("Various Artists"),
+                "brahms": Artist("Johannes Brahms"),
+                "schubert": Artist("Franz Schubert"),
+            },
+        )
+
+        tracks = album.requests()
+
+        self.assertEqual(
+            [track.artist for track in tracks],
+            ["Johannes Brahms", "Franz Schubert"],
+        )
+        self.assertEqual(tracks[0].album_artist, "Various Artists")
+        self.assertEqual(tracks[0].metadata()["album_artist"], "Various Artists")
+
+    def test_loads_artist_reference_from_directory(self):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir)
+            artists = root / "artists"
+            artists.mkdir()
+            (artists / "beethoven.json").write_text(
+                json.dumps(
+                    {
+                        "name": "Ludwig van Beethoven",
+                        "default_genre": "Classical",
                     }
-                ]
+                ),
+                encoding="utf-8",
+            )
+            album_path = root / "symphony.json"
+            album_path.write_text(
+                json.dumps(
+                    {
+                        "title": "Symphony",
+                        "artist": "beethoven",
+                        "tracks": [{"title": "Movement", "url": "https://example.com"}],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            album = load_album(album_path, artists)
+
+        self.assertEqual(album.album_artist.name, "Ludwig van Beethoven")
+        self.assertEqual(album.requests()[0].genre, "Classical")
+
+    def test_rejects_a_track_without_any_url(self):
+        with self.assertRaisesRegex(SpecError, "album has no shared 'url'"):
+            parse_album(
+                {
+                    "title": "Album",
+                    "artist": "artist",
+                    "tracks": [{"title": "Song"}],
+                },
+                {"artist": Artist("Artist")},
             )
 
 
@@ -60,27 +141,6 @@ class TimestampTests(unittest.TestCase):
     def test_rejects_non_finite_timestamp(self):
         with self.assertRaises(SpecError):
             parse_timestamp("nan")
-
-
-class ResolutionTests(unittest.TestCase):
-    def test_resolves_default_time_range(self):
-        self.assertEqual(resolve_time_range(TrackSpec(url="url"), 10_000), (0, 10_000))
-
-    def test_rejects_range_outside_recording(self):
-        track = TrackSpec(url="url", end_ms=11_000)
-        with self.assertRaisesRegex(SpecError, "outside"):
-            resolve_time_range(track, 10_000)
-
-    def test_resolves_chapters_relative_to_trim(self):
-        chapters = resolve_chapters(
-            (ChapterSpec(10_000, "One"), ChapterSpec(15_000)),
-            start_ms=10_000,
-            end_ms=20_000,
-        )
-        self.assertEqual(chapters[0].start_ms, 0)
-        self.assertEqual(chapters[0].end_ms, 5_000)
-        self.assertEqual(chapters[1].title, "Chapter 2")
-        self.assertEqual(chapters[1].end_ms, 10_000)
 
 
 if __name__ == "__main__":

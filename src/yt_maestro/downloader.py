@@ -34,6 +34,8 @@ def download_audio(
     try:
         with yt_dlp.YoutubeDL(options) as ydl:
             info = ydl.extract_info(url, download=True)
+            # Post-processing may change the extension, so prefer yt-dlp's
+            # reported final path over the original prepared filename.
             downloads = info.get("requested_downloads") or []
             if downloads and (
                 downloads[0].get("filepath") or downloads[0].get("_filename")

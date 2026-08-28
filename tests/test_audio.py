@@ -27,7 +27,7 @@ class CommandFailureTests(unittest.TestCase):
 
 class MetadataEscapingTests(unittest.TestCase):
     def test_chapter_metadata_is_escaped(self):
-        tag = audio._chapter_tag(Chapter(0, 1000, "A=B; C#"))
+        tag = audio._chapter_tag(Chapter(0, "A=B; C#", 1000))
         self.assertIn("TITLE=A\\=B\\; C\\#", tag)
 
 

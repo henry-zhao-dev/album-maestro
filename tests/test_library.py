@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from yt_maestro.library import LibraryConfig, LibraryError, initialize
+from yt_maestro.library import LibraryConfig, LibraryError, initialize, load_config
 
 
 class InitializeLibraryTests(unittest.TestCase):
@@ -48,6 +48,33 @@ class InitializeLibraryTests(unittest.TestCase):
                     temporary_dir,
                     LibraryConfig(name="Music", downloads_dir=Path("../downloads")),
                 )
+
+
+class LoadLibraryTests(unittest.TestCase):
+    def test_loads_configured_paths_and_ignores_schema_version(self):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir)
+            (root / "yt-maestro.json").write_text(
+                json.dumps(
+                    {
+                        "schema_version": 1,
+                        "kind": "library",
+                        "name": "Music",
+                        "paths": {
+                            "albums": "records",
+                            "artists": "people",
+                            "downloads": "audio",
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            config = load_config(root)
+
+        self.assertEqual(config.albums_dir, Path("records"))
+        self.assertEqual(config.artists_dir, Path("people"))
+        self.assertEqual(config.downloads_dir, Path("audio"))
 
 
 if __name__ == "__main__":
