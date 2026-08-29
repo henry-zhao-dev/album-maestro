@@ -54,6 +54,7 @@ def _download(
             root / config.albums_dir / filename,
             root / config.artists_dir,
         )
+
         destination = root / config.downloads_dir
         existing = pipelines.existing_album_tracks(album, destination)
         if existing:

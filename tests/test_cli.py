@@ -74,25 +74,17 @@ class AlbumCommandTests(unittest.TestCase):
 
     @patch("yt_maestro.commands.album.pipelines.download_album")
     @patch("yt_maestro.commands.album.prompts.confirm", return_value=False)
-    def test_download_confirms_before_overwriting(
-        self, confirm, download_album
-    ):
+    def test_download_confirms_before_overwriting(self, confirm, download_album):
         with tempfile.TemporaryDirectory() as temporary_dir:
             root = Path(temporary_dir) / "library"
             _create_album_library(root)
             existing = (
-                root
-                / "downloads"
-                / "Ludwig van Beethoven"
-                / "Symphony"
-                / "First.m4a"
+                root / "downloads" / "Ludwig van Beethoven" / "Symphony" / "First.m4a"
             )
             existing.parent.mkdir(parents=True)
             existing.touch()
 
-            result = main(
-                ["album", "download", "symphony", "--library", str(root)]
-            )
+            result = main(["album", "download", "symphony", "--library", str(root)])
 
         self.assertEqual(result, 0)
         confirm.assert_called_once_with(
@@ -107,11 +99,7 @@ class AlbumCommandTests(unittest.TestCase):
             root = Path(temporary_dir) / "library"
             _create_album_library(root)
             existing = (
-                root
-                / "downloads"
-                / "Ludwig van Beethoven"
-                / "Symphony"
-                / "First.m4a"
+                root / "downloads" / "Ludwig van Beethoven" / "Symphony" / "First.m4a"
             )
             existing.parent.mkdir(parents=True)
             existing.touch()

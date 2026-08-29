@@ -25,15 +25,6 @@ def load_json(path: str | Path, label: str) -> Any:
         ) from error
 
 
-def required_string(data: Mapping[str, Any], key: str) -> str:
-    """Read a required, non-empty string field."""
-
-    value = optional_string(data, key)
-    if value is None:
-        raise SpecError(f"'{key}' must be a non-empty string")
-    return value
-
-
 def optional_string(data: Mapping[str, Any], key: str) -> str | None:
     """Read an optional string field, normalizing blanks to ``None``."""
 
@@ -43,6 +34,17 @@ def optional_string(data: Mapping[str, Any], key: str) -> str | None:
     if not isinstance(value, str):
         raise SpecError(f"'{key}' must be a string")
     return value.strip() or None
+
+
+def required_string(
+    data: Mapping[str, Any], key: str, error_type: type[ValueError] = SpecError
+) -> str:
+    """Read a required string, using the caller's domain-specific error."""
+
+    value = data.get(key)
+    if not isinstance(value, str) or not value.strip():
+        raise error_type(f"'{key}' must be a non-empty string")
+    return value.strip()
 
 
 def reject_unknown_fields(

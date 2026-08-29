@@ -38,9 +38,7 @@ def download_album(album: Album, output_dir: str | Path = ".") -> list[Path]:
     return outputs
 
 
-def existing_album_tracks(
-    album: Album, output_dir: str | Path = "."
-) -> list[Path]:
+def existing_album_tracks(album: Album, output_dir: str | Path = ".") -> list[Path]:
     """Return the output paths that already exist for an album."""
 
     destination = Path(output_dir).expanduser().resolve()
@@ -81,13 +79,18 @@ def download_tracks(
                 source_started_at = time.monotonic()
                 source_dir = temp_dir / f"source-{len(sources) + 1}"
                 source_dir.mkdir()
-                sources[track.url] = downloader.download_audio(track.url, source_dir)
-                if sources[track.url] is None:
+                try:
+                    sources[track.url] = downloader.download_audio(
+                        track.url, source_dir
+                    )
+                except downloader.DownloaderError as error:
+                    sources[track.url] = None
                     logger.error(
-                        "Source %s/%s failed; %s tracks will be skipped",
+                        "Source %s/%s failed; %s tracks will be skipped: %s",
                         source_number,
                         len(source_counts),
                         source_counts[track.url],
+                        error,
                     )
                 else:
                     logger.info(
@@ -107,7 +110,7 @@ def download_tracks(
             work_dir.mkdir()
             try:
                 output = _create_track(track, source, destination, work_dir)
-            except PipelineError as error:
+            except (PipelineError, audio.AudioError) as error:
                 logger.error(
                     "Cannot create track %s/%s (%s): %s",
                     index,
@@ -176,9 +179,7 @@ def _create_track(
     return final_path
 
 
-def _track_output_path(
-    track: TrackRequest, destination: Path, suffix: str
-) -> Path:
+def _track_output_path(track: TrackRequest, destination: Path, suffix: str) -> Path:
     """Return the final library path for a track."""
 
     return destination / track.album_artist / track.album / f"{track.title}{suffix}"

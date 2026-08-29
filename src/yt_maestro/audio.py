@@ -1,21 +1,20 @@
 """Tool-independent audio inspection and editing operations."""
 
-import logging
 import math
-import os
 import subprocess
 import tempfile
 from collections.abc import Mapping, Sequence
+from pathlib import Path
 
 from yt_maestro.models import Chapter
 
-PathType = str | os.PathLike[str]
 
-logger = logging.getLogger(__name__)
+class AudioError(RuntimeError):
+    """Raised when an external audio operation cannot be completed."""
 
 
-def audio_duration_ms(path: PathType) -> int:
-    """Return the container-reported duration in milliseconds, or zero."""
+def audio_duration_ms(path: str | Path) -> int:
+    """Return the reported duration in milliseconds, or zero if malformed."""
 
     command = [
         "ffprobe",
@@ -25,11 +24,9 @@ def audio_duration_ms(path: PathType) -> int:
         "format=duration",
         "-of",
         "default=noprint_wrappers=1:nokey=1",
-        os.fspath(path),
+        str(path),
     ]
     output = _run_command(command)
-    if output is None:
-        return 0
 
     try:
         duration_seconds = float(output)
@@ -41,52 +38,66 @@ def audio_duration_ms(path: PathType) -> int:
 
 
 def trim_audio(
-    input_path: PathType,
-    output_path: PathType,
+    input_path: str | Path,
+    output_path: str | Path,
     start_ms: int,
     end_ms: int,
     *,
-    reencode: bool = False,
+    re_encode: bool = False,
 ) -> str:
-    """Trim an audio file, returning the input path if no output was produced."""
+    """Copy the selected time range into a new audio file."""
 
-    input_path, output_path = os.fspath(input_path), os.fspath(output_path)
-    duration_ms = audio_duration_ms(input_path)
-    if start_ms == 0 and end_ms == duration_ms:
-        return input_path
+    input_path, output_path = str(input_path), str(output_path)
+    if start_ms < 0 or end_ms <= start_ms:
+        raise ValueError(
+            "start_ms must be non-negative and end_ms must be greater than start_ms"
+        )
 
-    command = _base_command([input_path])
+    command = _ffmpeg_command([input_path])
     command.extend(
-        ["-ss", f"{start_ms / 1000:.3f}", "-to", f"{end_ms / 1000:.3f}", "-map", "0"]
+        [
+            "-ss",
+            _milliseconds_to_seconds(start_ms),
+            "-t",
+            _milliseconds_to_seconds(end_ms - start_ms),
+            "-map",
+            "0",
+        ]
     )
-    if not reencode:
+    if not re_encode:
         command.extend(["-c", "copy"])
     command.append(output_path)
-    return input_path if _run_command(command) is None else output_path
+    _run_command(command)
+    return output_path
 
 
 def add_metadata(
-    input_path: PathType, output_path: PathType, metadata: Mapping[str, str]
+    input_path: str | Path,
+    output_path: str | Path,
+    metadata: Mapping[str, str],
 ) -> str:
     """Copy an audio file with metadata tags applied."""
 
-    input_path, output_path = os.fspath(input_path), os.fspath(output_path)
+    input_path, output_path = str(input_path), str(output_path)
     if not metadata:
         return input_path
 
-    command = _base_command([input_path])
+    command = _ffmpeg_command([input_path])
     for key, value in metadata.items():
         command.extend(["-metadata", f"{key}={value}"])
     command.extend(["-map", "0", "-c", "copy", output_path])
-    return input_path if _run_command(command) is None else output_path
+    _run_command(command)
+    return output_path
 
 
 def add_chapters(
-    input_path: PathType, output_path: PathType, chapters: Sequence[Chapter]
+    input_path: str | Path,
+    output_path: str | Path,
+    chapters: Sequence[Chapter],
 ) -> str:
     """Copy an audio file with chapter metadata applied."""
 
-    input_path, output_path = os.fspath(input_path), os.fspath(output_path)
+    input_path, output_path = str(input_path), str(output_path)
     if not chapters:
         return input_path
 
@@ -102,7 +113,7 @@ def add_chapters(
 
         # Preserve tags from the audio input while taking chapters from the
         # generated ffmetadata input.
-        command = _base_command([input_path, metadata_path])
+        command = _ffmpeg_command([input_path, metadata_path])
         command.extend(
             [
                 "-map",
@@ -116,43 +127,45 @@ def add_chapters(
                 output_path,
             ]
         )
-        return input_path if _run_command(command) is None else output_path
+        _run_command(command)
+        return output_path
     finally:
         try:
-            os.remove(metadata_path)
+            Path(metadata_path).unlink()
         except FileNotFoundError:
             pass
 
 
-def _base_command(input_paths: Sequence[PathType], *, quiet: bool = True) -> list[str]:
+def _ffmpeg_command(input_paths: Sequence[str | Path]) -> list[str]:
     """Build the common portion of an FFmpeg command."""
 
-    command = ["ffmpeg", "-y"]
-    if quiet:
-        command.extend(["-v", "error"])
+    command = ["ffmpeg", "-nostdin", "-y", "-v", "error"]
     for path in input_paths:
-        command.extend(["-i", os.fspath(path)])
+        command.extend(["-i", str(path)])
     return command
 
 
-def _run_command(command: Sequence[str]) -> str | None:
-    """Run a media command and return its output, or ``None`` on failure."""
+def _run_command(command: Sequence[str]) -> str:
+    """Run a media command and return its stripped combined output."""
 
     if not command:
-        return None
+        raise ValueError("media command must not be empty")
     try:
         output = subprocess.check_output(command, text=True, stderr=subprocess.STDOUT)
         return output.strip()
-    except FileNotFoundError:
-        logger.error("External command not found: %s", command[0])
+    except FileNotFoundError as error:
+        raise AudioError(f"external command not found: {command[0]}") from error
     except subprocess.CalledProcessError as error:
-        logger.error(
-            "External command failed (%s, exit %s): %s",
-            command[0],
-            error.returncode,
-            error.output,
-        )
-    return None
+        details = error.output.strip() if error.output else "no error output"
+        raise AudioError(
+            f"{command[0]} failed with exit code {error.returncode}: {details}"
+        ) from error
+
+
+def _milliseconds_to_seconds(milliseconds: int) -> str:
+    """Format milliseconds as the seconds syntax accepted by FFmpeg."""
+
+    return f"{milliseconds / 1000:.3f}"
 
 
 def _chapter_tag(chapter: Chapter) -> str:
