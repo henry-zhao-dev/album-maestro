@@ -11,11 +11,13 @@ Create a library interactively:
 yt-maestro init
 ```
 
-Pass a directory to create the library, or disable prompts for scripts:
+Pass a directory to create the library there:
 
 ```shell
-yt-maestro init music --no-interaction
+yt-maestro init music
 ```
+
+The library name defaults to the directory name. Override it with `--name`.
 
 The initialized library contains a `yt-maestro.json` manifest plus
 `albums/`, `artists/`, and `downloads/` directories.

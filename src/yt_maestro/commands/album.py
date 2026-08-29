@@ -5,8 +5,9 @@ import logging
 from collections.abc import Sequence
 from pathlib import Path
 
-from yt_maestro import library, pipelines, specs
+from yt_maestro import pipelines, specs
 from yt_maestro.commands import prompts
+from yt_maestro.library import Library, LibraryError
 from yt_maestro.models import Album
 
 logger = logging.getLogger(__name__)
@@ -52,31 +53,35 @@ def run(argv: Sequence[str]) -> int:
             download.error("album references cannot be combined with --all")
         if not args.all_albums and not args.album_references:
             download.error("provide at least one album reference or use --all")
+
+        try:
+            music_library = Library.load(args.library)
+        except LibraryError as error:
+            logger.error("Cannot load library: %s", error)
+            return 1
+
         if args.all_albums:
-            return _download_all(args.library, overwrite=args.overwrite)
+            return _download_all(music_library, overwrite=args.overwrite)
         return _download(
             args.album_references,
-            args.library,
+            music_library,
             overwrite=args.overwrite,
         )
+
     return 2
 
 
 def _download(
     album_references: Sequence[str],
-    library_dir: str | Path,
+    music_library: Library,
     *,
     overwrite: bool = False,
 ) -> int:
     """Load and download the selected albums from a library."""
 
     try:
-        root = Path(library_dir).expanduser().resolve()
-        config = library.load_config(root)
-        albums_dir = root / config.albums_dir
-        artists_dir = root / config.artists_dir
         filenames = _album_filenames(album_references)
-    except (library.LibraryError, specs.SpecError) as error:
+    except specs.SpecError as error:
         logger.error("Cannot select albums: %s", error)
         return 1
 
@@ -84,7 +89,10 @@ def _download(
     failed = False
     for filename in filenames:
         try:
-            album = specs.load_album(albums_dir / filename, artists_dir)
+            album = specs.load_album(
+                music_library.albums_dir / filename,
+                music_library.artists_dir,
+            )
         except specs.SpecError as error:
             logger.error("Cannot load album %s: %s", filename.stem, error)
             failed = True
@@ -96,7 +104,7 @@ def _download(
             logger.info("No albums found")
         return 1 if failed else 0
 
-    destination = root / config.downloads_dir
+    destination = music_library.downloads_dir
     existing = {
         path
         for _, album in albums
@@ -125,24 +133,14 @@ def _download(
 
 
 def _download_all(
-    library_dir: str | Path,
+    music_library: Library,
     *,
     overwrite: bool = False,
 ) -> int:
     """Discover and download every album in a library."""
 
-    try:
-        root = Path(library_dir).expanduser().resolve()
-        config = library.load_config(root)
-        albums_dir = root / config.albums_dir
-        if not albums_dir.is_dir():
-            raise library.LibraryError(f"albums directory does not exist: {albums_dir}")
-        references = _all_album_references(albums_dir)
-    except library.LibraryError as error:
-        logger.error("Cannot select albums: %s", error)
-        return 1
-
-    return _download(references, library_dir, overwrite=overwrite)
+    references = _all_album_references(music_library.albums_dir)
+    return _download(references, music_library, overwrite=overwrite)
 
 
 def _all_album_references(albums_dir: Path) -> list[str]:
