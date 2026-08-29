@@ -19,10 +19,21 @@ class DurationTests(unittest.TestCase):
 
 class CommandFailureTests(unittest.TestCase):
     @patch("yt_maestro.audio.subprocess.check_output")
-    def test_metadata_failure_returns_input_path(self, check_output):
+    def test_metadata_failure_raises_audio_error(self, check_output):
         check_output.side_effect = subprocess.CalledProcessError(1, "ffmpeg", "bad")
-        result = audio.add_metadata("input.m4a", "output.m4a", {"artist": "Bach"})
-        self.assertEqual(result, "input.m4a")
+        with self.assertRaisesRegex(audio.AudioError, "ffmpeg failed"):
+            audio.add_metadata("input.m4a", "output.m4a", {"artist": "Bach"})
+
+
+class TrimTests(unittest.TestCase):
+    @patch("yt_maestro.audio.subprocess.check_output", return_value="")
+    def test_trim_uses_the_requested_duration(self, check_output):
+        result = audio.trim_audio("input.m4a", "output.m4a", 5_000, 20_000)
+
+        self.assertEqual(result, "output.m4a")
+        command = check_output.call_args.args[0]
+        self.assertEqual(command[command.index("-ss") + 1], "5.000")
+        self.assertEqual(command[command.index("-t") + 1], "15.000")
 
 
 class MetadataEscapingTests(unittest.TestCase):

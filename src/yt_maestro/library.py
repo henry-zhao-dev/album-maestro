@@ -4,7 +4,8 @@ import json
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+
+from yt_maestro.specs import required_string
 
 DEFAULT_ALBUMS_DIR = Path("albums")
 DEFAULT_ARTISTS_DIR = Path("artists")
@@ -104,25 +105,17 @@ def load_config(root: str | Path = ".") -> LibraryConfig:
 
     if not isinstance(data, Mapping) or data.get("kind") != "library":
         raise LibraryError("yt-maestro.json is not a library manifest")
-    name = _required_string(data, "name")
+
+    name = required_string(data, "name", LibraryError)
     paths = data.get("paths")
     if not isinstance(paths, Mapping):
         raise LibraryError("library manifest requires a 'paths' object")
 
     config = LibraryConfig(
         name=name,
-        albums_dir=Path(_required_string(paths, "albums")),
-        artists_dir=Path(_required_string(paths, "artists")),
-        downloads_dir=Path(_required_string(paths, "downloads")),
+        albums_dir=Path(required_string(paths, "albums", LibraryError)),
+        artists_dir=Path(required_string(paths, "artists", LibraryError)),
+        downloads_dir=Path(required_string(paths, "downloads", LibraryError)),
     )
     validate_config(config)
     return config
-
-
-def _required_string(data: Mapping[str, Any], key: str) -> str:
-    """Read a required, non-empty manifest string."""
-
-    value = data.get(key)
-    if not isinstance(value, str) or not value.strip():
-        raise LibraryError(f"'{key}' must be a non-empty string")
-    return value.strip()

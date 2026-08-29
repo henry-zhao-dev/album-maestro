@@ -67,6 +67,9 @@ Use `--library` when running the command elsewhere:
 yt-maestro album download beethoven-symphony-no-5 --library ~/Music
 ```
 
+If any target tracks already exist, yt-maestro lists them and asks before
+overwriting. Pass `--overwrite` to continue without prompting.
+
 An album may use one shared source recording:
 
 ```json

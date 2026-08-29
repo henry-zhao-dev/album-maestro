@@ -7,11 +7,14 @@ from collections.abc import Sequence
 
 from yt_maestro.commands import COMMANDS
 
+LOG_FORMAT = "[%(levelname)s] %(message)s"
+
 
 def main(argv: Sequence[str] | None = None) -> int:
     """Dispatch command-line arguments to the selected command group."""
 
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
+
     arguments = list(argv) if argv is not None else sys.argv[1:]
     parser = argparse.ArgumentParser(
         prog="yt-maestro", description="Manage a declarative music library."

@@ -7,6 +7,7 @@ from yt_maestro.models import Chapter, TrackRequest
 from yt_maestro.pipelines.album import (
     PipelineError,
     download_track,
+    download_tracks,
     resolve_chapters,
     resolve_time_range,
 )
@@ -14,6 +15,7 @@ from yt_maestro.pipelines.album import (
 
 class PipelineTests(unittest.TestCase):
     @patch("yt_maestro.pipelines.album.shutil.move")
+    @patch("yt_maestro.pipelines.album.shutil.copy2")
     @patch(
         "yt_maestro.pipelines.album.audio.add_chapters",
         return_value="chaptered.m4a",
@@ -32,6 +34,7 @@ class PipelineTests(unittest.TestCase):
         trim_audio,
         add_metadata,
         add_chapters,
+        copy2,
         move,
     ):
         with tempfile.TemporaryDirectory() as output_dir:
@@ -50,15 +53,44 @@ class PipelineTests(unittest.TestCase):
             result = download_track(track, output_dir)
 
         expected = (
-            Path(output_dir).resolve() / "Various Artists" / "Album" / "downloaded.m4a"
+            Path(output_dir).resolve() / "Various Artists" / "Album" / "Track.m4a"
         )
         self.assertEqual(result, expected)
         download_audio.assert_called_once()
+        copy2.assert_called_once()
         audio_duration_ms.assert_called_once()
         trim_audio.assert_called_once()
         add_metadata.assert_called_once()
         add_chapters.assert_called_once()
         move.assert_called_once_with("chaptered.m4a", result)
+
+    @patch("yt_maestro.pipelines.album._create_track")
+    @patch("yt_maestro.pipelines.album.downloader.download_audio")
+    def test_downloads_a_shared_source_once(self, download_audio, create_track):
+        source = Path("source.m4a")
+        download_audio.return_value = source
+        create_track.side_effect = [Path("first.m4a"), Path("second.m4a")]
+        tracks = (
+            _track_request(title="First", url="https://example.com/shared"),
+            _track_request(title="Second", url="https://example.com/shared"),
+        )
+
+        with (
+            tempfile.TemporaryDirectory() as output_dir,
+            self.assertLogs("yt_maestro.pipelines.album", level="INFO") as logs,
+        ):
+            outputs = download_tracks(tracks, output_dir)
+
+        self.assertEqual(outputs, [Path("first.m4a"), Path("second.m4a")])
+        download_audio.assert_called_once()
+        self.assertEqual(
+            [call.args[1] for call in create_track.call_args_list],
+            [source, source],
+        )
+        messages = [record.getMessage() for record in logs.records]
+        self.assertTrue(messages[0].startswith("Downloading source 1/1"))
+        self.assertEqual(messages[2], "Creating track 1/2: First")
+        self.assertEqual(messages[4], "Creating track 2/2: Second")
 
     def test_resolves_default_time_range(self):
         self.assertEqual(resolve_time_range(_track_request(), 10_000), (0, 10_000))
