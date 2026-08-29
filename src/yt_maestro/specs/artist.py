@@ -17,7 +17,7 @@ from yt_maestro.specs._parsing import (
 def load_artist(path: str | Path) -> Artist:
     """Load and validate one artist JSON file."""
 
-    return parse_artist(load_json(path, "artist"))
+    return parse_artist(load_json(path, label="artist"))
 
 
 def parse_artist(data: Any) -> Artist:

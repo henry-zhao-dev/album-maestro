@@ -10,7 +10,7 @@
     "artist": {
       "type": "string",
       "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
-      "description": "Album artist ID inherited by tracks without an artist."
+      "description": "Canonical album artist reference inherited by tracks without an artist."
     },
     "genre": { "type": "string", "minLength": 1 },
     "url": {
@@ -57,7 +57,7 @@
         "artist": {
           "type": "string",
           "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
-          "description": "Optional track artist; inherits the album artist."
+          "description": "Optional canonical track artist reference; inherits the album artist."
         },
         "url": { "type": "string", "minLength": 1 },
         "start": { "$ref": "#/$defs/timestamp" },

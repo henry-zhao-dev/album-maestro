@@ -131,6 +131,18 @@ class AlbumTests(unittest.TestCase):
                 {"artist": Artist("Artist")},
             )
 
+    def test_rejects_noncanonical_artist_reference(self):
+        with self.assertRaisesRegex(SpecError, "lowercase kebab-case"):
+            parse_album(
+                {
+                    "title": "Album",
+                    "artist": "Example Artist",
+                    "url": "https://example.com",
+                    "tracks": [{"title": "Song"}],
+                },
+                {"Example Artist": Artist("Example Artist")},
+            )
+
 
 class TimestampTests(unittest.TestCase):
     def test_supported_timestamp_forms(self):

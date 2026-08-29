@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 
 from yt_maestro.library import Library, LibraryError
+from yt_maestro.specs import SpecError
 
 
 class InitializeLibraryTests(unittest.TestCase):
@@ -72,6 +73,14 @@ class LoadLibraryTests(unittest.TestCase):
 
             with self.assertRaisesRegex(LibraryError, "albums directory"):
                 Library.load(root)
+
+    def test_rejects_noncanonical_catalog_references(self):
+        music_library = Library(root=".", name="Music")
+
+        for reference in ("Symphony-No-5", "symphony_no_5", "Symphony No. 5"):
+            with self.subTest(reference=reference):
+                with self.assertRaisesRegex(SpecError, "lowercase kebab-case"):
+                    music_library.load_album(reference)
 
 
 if __name__ == "__main__":

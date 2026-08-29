@@ -3,7 +3,6 @@
 import argparse
 import logging
 from collections.abc import Sequence
-from pathlib import Path
 
 from yt_maestro import pipelines, specs
 from yt_maestro.commands import prompts
@@ -27,7 +26,7 @@ def run(argv: Sequence[str]) -> int:
         "album_references",
         nargs="*",
         metavar="ALBUM",
-        help="Album filename without .json",
+        help="Album reference in lowercase kebab-case (without .json)",
     )
     download.add_argument(
         "--all",
@@ -61,8 +60,8 @@ def run(argv: Sequence[str]) -> int:
             return 1
 
         if args.all_albums:
-            return _download_all(music_library, overwrite=args.overwrite)
-        return _download(
+            return _run_download_all(music_library, overwrite=args.overwrite)
+        return _run_download(
             args.album_references,
             music_library,
             overwrite=args.overwrite,
@@ -71,7 +70,7 @@ def run(argv: Sequence[str]) -> int:
     return 2
 
 
-def _download(
+def _run_download(
     album_references: Sequence[str],
     music_library: Library,
     *,
@@ -79,25 +78,17 @@ def _download(
 ) -> int:
     """Load and download the selected albums from a library."""
 
-    try:
-        filenames = _album_filenames(album_references)
-    except specs.SpecError as error:
-        logger.error("Cannot select albums: %s", error)
-        return 1
-
     albums: list[tuple[str, Album]] = []
     failed = False
-    for filename in filenames:
+    references = dict.fromkeys(album_references)
+    for reference in references:
         try:
-            album = specs.load_album(
-                music_library.albums_dir / filename,
-                music_library.artists_dir,
-            )
+            album = music_library.load_album(reference)
         except specs.SpecError as error:
-            logger.error("Cannot load album %s: %s", filename.stem, error)
+            logger.error("Cannot load album %s: %s", reference, error)
             failed = True
             continue
-        albums.append((filename.stem, album))
+        albums.append((reference.removesuffix(".json"), album))
 
     if not albums:
         if not failed:
@@ -132,40 +123,12 @@ def _download(
     return 1 if failed else 0
 
 
-def _download_all(
+def _run_download_all(
     music_library: Library,
     *,
     overwrite: bool = False,
 ) -> int:
     """Discover and download every album in a library."""
 
-    references = _all_album_references(music_library.albums_dir)
-    return _download(references, music_library, overwrite=overwrite)
-
-
-def _all_album_references(albums_dir: Path) -> list[str]:
-    """Return every album reference found in a directory."""
-
-    return [path.stem for path in sorted(albums_dir.glob("*.json"))]
-
-
-def _album_filenames(album_references: Sequence[str]) -> list[Path]:
-    """Normalize and deduplicate explicit album references."""
-
-    filenames = dict.fromkeys(
-        _album_filename(reference) for reference in album_references
-    )
-    return [Path(filename) for filename in filenames]
-
-
-def _album_filename(album_reference: str) -> str:
-    """Normalize an album reference to a safe JSON filename."""
-
-    path = Path(album_reference)
-    # Album references select files inside the configured directory; accepting
-    # path components here would let callers escape that boundary.
-    if path.name != album_reference or album_reference in {"", ".", ".."}:
-        raise specs.SpecError("album reference must be a filename, not a path")
-    if path.suffix and path.suffix != ".json":
-        raise specs.SpecError("album reference must have no extension or use .json")
-    return album_reference if path.suffix == ".json" else f"{album_reference}.json"
+    references = music_library.album_references()
+    return _run_download(references, music_library, overwrite=overwrite)

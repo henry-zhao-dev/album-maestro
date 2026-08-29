@@ -5,7 +5,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
-from yt_maestro.specs import required_string
+from yt_maestro import specs
+from yt_maestro.models import Album, Artist
 
 
 class LibraryError(ValueError):
@@ -60,6 +61,23 @@ class Library:
 
         return self.root / "yt-maestro.json"
 
+    def album_references(self) -> list[str]:
+        """Return every album reference in filename order."""
+
+        return [path.stem for path in sorted(self.albums_dir.glob("*.json"))]
+
+    def load_album(self, reference: str) -> Album:
+        """Load an album and resolve its artist references."""
+
+        filename = _catalog_filename(reference, "album")
+        return specs.load_album(self.albums_dir / filename, self.artists_dir)
+
+    def load_artist(self, reference: str) -> Artist:
+        """Load an artist by its catalog reference."""
+
+        filename = _catalog_filename(reference, "artist")
+        return specs.load_artist(self.artists_dir / filename)
+
     def initialize(self) -> Path:
         """Create the library directories and manifest."""
 
@@ -107,7 +125,21 @@ class Library:
 
         music_library = cls(
             root=resolved_root,
-            name=required_string(data, "name", LibraryError),
+            name=specs.required_string(data, "name", LibraryError),
         )
         music_library.validate()
         return music_library
+
+
+def _catalog_filename(reference: str, label: str) -> str:
+    """Validate a catalog reference and return its JSON filename."""
+
+    path = Path(reference)
+    if path.name != reference or reference in {"", ".", ".."}:
+        raise specs.SpecError(f"{label} reference must be a filename, not a path")
+
+    reference_without_extension = reference.removesuffix(".json")
+    canonical_reference = specs.catalog_reference(
+        reference_without_extension, label=label
+    )
+    return f"{canonical_reference}.json"
