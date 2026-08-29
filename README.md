@@ -61,6 +61,14 @@ From a library directory, download an album by its filename without `.json`:
 yt-maestro album download beethoven-symphony-no-5
 ```
 
+Provide multiple references to download several albums, or use `--all` to
+download every album in the library:
+
+```shell
+yt-maestro album download beethoven-symphony-no-5 mozart-requiem
+yt-maestro album download --all
+```
+
 Use `--library` when running the command elsewhere:
 
 ```shell
