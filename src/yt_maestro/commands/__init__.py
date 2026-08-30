@@ -2,7 +2,7 @@
 
 from yt_maestro.commands.album import AlbumCommand
 from yt_maestro.commands.base import Command
-from yt_maestro.commands.init import InitCommand
+from yt_maestro.commands.initialize import InitCommand
 
 _registered_commands = (
     InitCommand(),
