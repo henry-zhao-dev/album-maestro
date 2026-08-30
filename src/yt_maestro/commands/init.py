@@ -2,7 +2,6 @@
 
 import argparse
 import logging
-from collections.abc import Sequence
 from pathlib import Path
 
 from yt_maestro.library import Library, LibraryError
@@ -10,16 +9,9 @@ from yt_maestro.library import Library, LibraryError
 logger = logging.getLogger(__name__)
 
 
-def run(argv: Sequence[str]) -> int:
-    """Initialize a yt-maestro library from command-line arguments."""
+def configure(parser: argparse.ArgumentParser) -> None:
+    """Add arguments for initializing a music library."""
 
-    parser = argparse.ArgumentParser(
-        prog="yt-maestro init",
-        description=(
-            "Create a yt-maestro library for downloading and organizing music "
-            "from YouTube."
-        ),
-    )
     parser.add_argument(
         "directory",
         nargs="?",
@@ -27,7 +19,10 @@ def run(argv: Sequence[str]) -> int:
         help="Library directory (default: current directory)",
     )
     parser.add_argument("--name", help="Library name")
-    args = parser.parse_args(argv)
+
+
+def run(args: argparse.Namespace) -> int:
+    """Initialize a music library from parsed command-line arguments."""
 
     root = Path(args.directory).expanduser()
     default_name = root.resolve().name

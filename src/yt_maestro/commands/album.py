@@ -12,23 +12,23 @@ from yt_maestro.models import Album
 logger = logging.getLogger(__name__)
 
 
-def run(argv: Sequence[str]) -> int:
-    """Run an ``yt-maestro album`` subcommand."""
+def configure(parser: argparse.ArgumentParser) -> None:
+    """Add commands and arguments for working with albums."""
 
-    parser = argparse.ArgumentParser(
-        prog="yt-maestro album", description="Work with albums in a music library."
+    commands = parser.add_subparsers(
+        dest="album_operation", metavar="COMMAND", required=True
     )
-    commands = parser.add_subparsers(dest="command", required=True)
     download = commands.add_parser(
         "download", help="Download every track in one or more albums."
     )
-    download.add_argument(
+    selection = download.add_mutually_exclusive_group(required=True)
+    selection.add_argument(
         "album_references",
         nargs="*",
         metavar="ALBUM",
         help="Album reference in lowercase kebab-case (without .json)",
     )
-    download.add_argument(
+    selection.add_argument(
         "--all",
         action="store_true",
         dest="all_albums",
@@ -45,14 +45,12 @@ def run(argv: Sequence[str]) -> int:
         action="store_true",
         help="Overwrite existing track files without prompting",
     )
-    args = parser.parse_args(list(argv))
 
-    if args.command == "download":
-        if args.all_albums and args.album_references:
-            download.error("album references cannot be combined with --all")
-        if not args.all_albums and not args.album_references:
-            download.error("provide at least one album reference or use --all")
 
+def run(args: argparse.Namespace) -> int:
+    """Run an album operation from parsed command-line arguments."""
+
+    if args.album_operation == "download":
         try:
             music_library = Library.load(args.library)
         except LibraryError as error:

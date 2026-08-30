@@ -19,11 +19,19 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="yt-maestro", description="Manage a declarative music library."
     )
-    parser.add_argument("command", choices=COMMANDS)
-    parsed, remaining = parser.parse_known_args(arguments)
+    commands = parser.add_subparsers(dest="command", metavar="COMMAND", required=True)
+    for name, command in COMMANDS.items():
+        command_parser = commands.add_parser(name, help=command.help)
+        command.configure(command_parser)
 
-    run_command = COMMANDS[parsed.command]
-    return run_command(remaining)
+    if not arguments:
+        parser.print_help()
+        return 0
+
+    parsed = parser.parse_args(arguments)
+
+    command = COMMANDS[parsed.command]
+    return command.run(parsed)
 
 
 if __name__ == "__main__":
