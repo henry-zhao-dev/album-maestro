@@ -47,7 +47,9 @@ class HelpTests(unittest.TestCase):
             main(["album"])
 
         self.assertEqual(exit_context.exception.code, 2)
-        self.assertIn("the following arguments are required: COMMAND", errors.getvalue())
+        self.assertIn(
+            "the following arguments are required: COMMAND", errors.getvalue()
+        )
         self.assertNotIn("album_operation", errors.getvalue())
 
 
@@ -182,9 +184,7 @@ class AlbumCommandTests(unittest.TestCase):
             _write_album(root, "concerto", "Concerto")
             download_album.return_value = [Path("first.m4a"), Path("second.m4a")]
 
-            result = main(
-                ["album", "download", "--all", "--library", str(root)]
-            )
+            result = main(["album", "download", "--all", "--library", str(root)])
 
         self.assertEqual(result, 0)
         self.assertEqual(download_album.call_count, 2)

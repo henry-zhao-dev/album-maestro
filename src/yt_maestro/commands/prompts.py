@@ -1,5 +1,6 @@
 """Reusable interactive prompts for yt-maestro commands."""
 
+
 def confirm(label: str, default: bool = False) -> bool:
     """Prompt for a yes-or-no response."""
 

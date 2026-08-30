@@ -1,4 +1,4 @@
-"""Top-level command-line entry point."""
+"""Build the root parser and dispatch to a registered top-level command."""
 
 import argparse
 import logging
@@ -11,7 +11,7 @@ LOG_FORMAT = "[%(levelname)s] %(message)s"
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """Dispatch command-line arguments to the selected command group."""
+    """Configure the CLI, parse arguments once, and run the selected command."""
 
     logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
 
@@ -20,6 +20,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         prog="yt-maestro", description="Manage a declarative music library."
     )
     commands = parser.add_subparsers(dest="command", metavar="COMMAND", required=True)
+
+    # Each command owns the arguments beneath its top-level parser.
     for name, command in COMMANDS.items():
         command_parser = commands.add_parser(name, help=command.help)
         command.configure(command_parser)
@@ -30,6 +32,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     parsed = parser.parse_args(arguments)
 
+    # argparse stores the selected subparser name in ``parsed.command``.
     command = COMMANDS[parsed.command]
     return command.run(parsed)
 
