@@ -88,9 +88,7 @@ class Library:
         for directory in (self.albums_dir, self.artists_dir, self.downloads_dir):
             directory.mkdir(parents=True, exist_ok=True)
 
-        self.manifest.write_text(
-            json.dumps(self.as_dict(), indent=2), encoding="utf-8"
-        )
+        self.manifest.write_text(json.dumps(self.as_dict(), indent=2), encoding="utf-8")
         return self.manifest
 
     def validate(self) -> None:

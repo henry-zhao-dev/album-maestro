@@ -1,11 +1,56 @@
 import json
 import tempfile
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
+from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
 from yt_maestro.cli import main
 from yt_maestro.library import Library
+
+
+class HelpTests(unittest.TestCase):
+    def test_no_arguments_prints_root_help(self):
+        output = StringIO()
+
+        with redirect_stdout(output):
+            result = main([])
+
+        self.assertEqual(result, 0)
+        self.assertIn("Create a new music library.", output.getvalue())
+        self.assertIn("Work with albums in a music library.", output.getvalue())
+
+    def test_help_after_command_is_handled_by_command_parser(self):
+        cases = (
+            (["init", "-h"], "usage: yt-maestro init", "--name"),
+            (["album", "-h"], "usage: yt-maestro album", "download"),
+        )
+
+        for arguments, usage, detail in cases:
+            with self.subTest(command=arguments[0]):
+                output = StringIO()
+                with (
+                    redirect_stdout(output),
+                    self.assertRaises(SystemExit) as exit_context,
+                ):
+                    main(arguments)
+
+                self.assertEqual(exit_context.exception.code, 0)
+                self.assertIn(usage, output.getvalue())
+                self.assertIn(detail, output.getvalue())
+
+    def test_missing_album_command_uses_a_user_facing_name(self):
+        errors = StringIO()
+
+        with redirect_stderr(errors), self.assertRaises(SystemExit) as exit_context:
+            main(["album"])
+
+        self.assertEqual(exit_context.exception.code, 2)
+        self.assertIn(
+            "the following arguments are required: COMMAND", errors.getvalue()
+        )
+        self.assertNotIn("album_operation", errors.getvalue())
 
 
 class InitCommandTests(unittest.TestCase):
@@ -28,6 +73,7 @@ class InitCommandTests(unittest.TestCase):
             self.assertEqual(result, 0)
             config = json.loads((root / "yt-maestro.json").read_text(encoding="utf-8"))
             self.assertEqual(config["name"], "My Library")
+
 
 class AlbumCommandTests(unittest.TestCase):
     @patch("yt_maestro.commands.album.pipelines.download_album")
@@ -138,9 +184,7 @@ class AlbumCommandTests(unittest.TestCase):
             _write_album(root, "concerto", "Concerto")
             download_album.return_value = [Path("first.m4a"), Path("second.m4a")]
 
-            result = main(
-                ["album", "download", "--all", "--library", str(root)]
-            )
+            result = main(["album", "download", "--all", "--library", str(root)])
 
         self.assertEqual(result, 0)
         self.assertEqual(download_album.call_count, 2)

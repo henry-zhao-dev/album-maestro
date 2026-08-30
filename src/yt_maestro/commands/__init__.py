@@ -1,15 +1,17 @@
-"""Command implementations for the yt-maestro CLI."""
+"""Registry of commands available directly beneath ``yt-maestro``."""
 
-from collections.abc import Callable, Sequence
+from yt_maestro.commands.album import AlbumCommand
+from yt_maestro.commands.base import Command
+from yt_maestro.commands.initialize import InitCommand
 
-from yt_maestro.commands.album import run as run_album
-from yt_maestro.commands.init import run as run_init
+_registered_commands = (
+    InitCommand(),
+    AlbumCommand(),
+)
 
-Command = Callable[[Sequence[str]], int]
-
+# Nested operations such as ``album download`` are owned by their parent command.
 COMMANDS: dict[str, Command] = {
-    "init": run_init,
-    "album": run_album,
+    command.name: command for command in _registered_commands
 }
 
 __all__ = ["COMMANDS", "Command"]
