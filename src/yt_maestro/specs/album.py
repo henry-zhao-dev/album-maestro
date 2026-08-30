@@ -7,7 +7,7 @@ from typing import Any
 from yt_maestro.models import Album, AlbumTrack, Artist, Chapter
 from yt_maestro.specs._parsing import (
     SpecError,
-    artist_id,
+    artist_reference,
     load_json,
     optional_string,
     optional_timestamp,
@@ -20,24 +20,24 @@ from yt_maestro.specs.artist import load_artist
 def load_album(path: str | Path, artists_dir: str | Path) -> Album:
     """Load an album and resolve all artist IDs through ``artists_dir``."""
 
-    data = load_json(path, "album")
+    data = load_json(path, label="album")
     if not isinstance(data, Mapping):
         raise SpecError("album must be an object")
 
     # Resolve every reference up front so parsing can work with Artist objects
     # rather than repeatedly reading artist files track by track.
-    artist_ids = {artist_id(data)}
+    artist_references = {artist_reference(data)}
     tracks_data = data.get("tracks")
     if isinstance(tracks_data, list):
-        artist_ids.update(
-            artist_id(track)
+        artist_references.update(
+            artist_reference(track)
             for track in tracks_data
             if isinstance(track, Mapping) and track.get("artist") is not None
         )
 
     artists = {
         reference: load_artist(Path(artists_dir) / f"{reference}.json")
-        for reference in artist_ids
+        for reference in artist_references
     }
     return parse_album(data, artists)
 
@@ -133,7 +133,7 @@ def _parse_chapters(data: Any) -> list[Chapter]:
 def _resolve_artist(data: Mapping[str, Any], artists: Mapping[str, Artist]) -> Artist:
     """Replace an artist ID with its previously loaded catalog entry."""
 
-    reference = artist_id(data)
+    reference = artist_reference(data)
     try:
         return artists[reference]
     except KeyError as error:

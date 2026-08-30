@@ -11,11 +11,13 @@ Create a library interactively:
 yt-maestro init
 ```
 
-Pass a directory to create the library, or disable prompts for scripts:
+Pass a directory to create the library there:
 
 ```shell
-yt-maestro init music --no-interaction
+yt-maestro init music
 ```
+
+The library name defaults to the directory name. Override it with `--name`.
 
 The initialized library contains a `yt-maestro.json` manifest plus
 `albums/`, `artists/`, and `downloads/` directories.
@@ -59,6 +61,14 @@ From a library directory, download an album by its filename without `.json`:
 
 ```shell
 yt-maestro album download beethoven-symphony-no-5
+```
+
+Provide multiple references to download several albums, or use `--all` to
+download every album in the library:
+
+```shell
+yt-maestro album download beethoven-symphony-no-5 mozart-requiem
+yt-maestro album download --all
 ```
 
 Use `--library` when running the command elsewhere:

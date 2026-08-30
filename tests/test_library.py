@@ -3,7 +3,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from yt_maestro.library import LibraryConfig, LibraryError, initialize, load_config
+from yt_maestro.library import Library, LibraryError
+from yt_maestro.specs import SpecError
 
 
 class InitializeLibraryTests(unittest.TestCase):
@@ -11,7 +12,8 @@ class InitializeLibraryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_dir:
             root = Path(temporary_dir) / "music"
 
-            manifest = initialize(root, LibraryConfig(name="My Music"))
+            music_library = Library(root=root, name="My Music")
+            manifest = music_library.initialize()
 
             self.assertEqual(manifest, root.resolve() / "yt-maestro.json")
             self.assertEqual(
@@ -19,11 +21,6 @@ class InitializeLibraryTests(unittest.TestCase):
                 {
                     "kind": "library",
                     "name": "My Music",
-                    "paths": {
-                        "albums": "albums",
-                        "artists": "artists",
-                        "downloads": "downloads",
-                    },
                 },
             )
             self.assertTrue((root / "albums").is_dir())
@@ -37,21 +34,13 @@ class InitializeLibraryTests(unittest.TestCase):
             manifest.write_text("existing", encoding="utf-8")
 
             with self.assertRaisesRegex(LibraryError, "already exists"):
-                initialize(root, LibraryConfig(name="Music"))
+                Library(root=root, name="Music").initialize()
 
             self.assertEqual(manifest.read_text(encoding="utf-8"), "existing")
 
-    def test_rejects_paths_outside_library(self):
-        with tempfile.TemporaryDirectory() as temporary_dir:
-            with self.assertRaisesRegex(LibraryError, "relative path"):
-                initialize(
-                    temporary_dir,
-                    LibraryConfig(name="Music", downloads_dir=Path("../downloads")),
-                )
-
 
 class LoadLibraryTests(unittest.TestCase):
-    def test_loads_configured_paths_and_ignores_schema_version(self):
+    def test_loads_fixed_paths_and_ignores_schema_version(self):
         with tempfile.TemporaryDirectory() as temporary_dir:
             root = Path(temporary_dir)
             (root / "yt-maestro.json").write_text(
@@ -60,21 +49,38 @@ class LoadLibraryTests(unittest.TestCase):
                         "schema_version": 1,
                         "kind": "library",
                         "name": "Music",
-                        "paths": {
-                            "albums": "records",
-                            "artists": "people",
-                            "downloads": "audio",
-                        },
                     }
                 ),
                 encoding="utf-8",
             )
+            for directory in ("albums", "artists", "downloads"):
+                (root / directory).mkdir()
 
-            config = load_config(root)
+            music_library = Library.load(root)
 
-        self.assertEqual(config.albums_dir, Path("records"))
-        self.assertEqual(config.artists_dir, Path("people"))
-        self.assertEqual(config.downloads_dir, Path("audio"))
+        self.assertEqual(music_library.root, root.resolve())
+        self.assertEqual(music_library.albums_dir, root.resolve() / "albums")
+        self.assertEqual(music_library.artists_dir, root.resolve() / "artists")
+        self.assertEqual(music_library.downloads_dir, root.resolve() / "downloads")
+
+    def test_rejects_incomplete_library_structure(self):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir)
+            (root / "yt-maestro.json").write_text(
+                json.dumps({"kind": "library", "name": "Music"}),
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(LibraryError, "albums directory"):
+                Library.load(root)
+
+    def test_rejects_noncanonical_catalog_references(self):
+        music_library = Library(root=".", name="Music")
+
+        for reference in ("Symphony-No-5", "symphony_no_5", "Symphony No. 5"):
+            with self.subTest(reference=reference):
+                with self.assertRaisesRegex(SpecError, "lowercase kebab-case"):
+                    music_library.load_album(reference)
 
 
 if __name__ == "__main__":

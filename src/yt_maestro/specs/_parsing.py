@@ -11,7 +11,7 @@ class SpecError(ValueError):
     """Raised when catalog configuration cannot be parsed or resolved."""
 
 
-def load_json(path: str | Path, label: str) -> Any:
+def load_json(path: str | Path, *, label: str) -> Any:
     """Read a JSON file and report errors using catalog terminology."""
 
     try:
@@ -58,16 +58,23 @@ def reject_unknown_fields(
         raise SpecError(f"{label} has unknown field(s): {fields}")
 
 
-def artist_id(data: Mapping[str, Any], key: str = "artist") -> str:
-    """Read and validate an artist catalog identifier."""
+def catalog_reference(value: str, *, label: str) -> str:
+    """Validate a lowercase kebab-case catalog reference."""
 
-    value = required_string(data, key)
     if not all(
         part and part.isascii() and part.isalnum() and part == part.lower()
         for part in value.split("-")
     ):
-        raise SpecError(f"'{key}' must be a lowercase ID such as 'beethoven'")
+        raise SpecError(
+            f"{label} reference must be lowercase kebab-case, such as 'beethoven'"
+        )
     return value
+
+
+def artist_reference(data: Mapping[str, Any], key: str = "artist") -> str:
+    """Read and validate an artist reference from catalog data."""
+
+    return catalog_reference(required_string(data, key), label=key)
 
 
 def optional_timestamp(data: Mapping[str, Any], key: str) -> int | None:

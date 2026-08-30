@@ -5,56 +5,29 @@ from pathlib import Path
 from unittest.mock import patch
 
 from yt_maestro.cli import main
-from yt_maestro.library import LibraryConfig, initialize
+from yt_maestro.library import Library
 
 
 class InitCommandTests(unittest.TestCase):
-    def test_non_interactive_init_uses_defaults(self):
+    def test_init_uses_directory_name_by_default(self):
         with tempfile.TemporaryDirectory() as temporary_dir:
             root = Path(temporary_dir) / "collection"
 
-            result = main(["init", str(root), "--no-interaction"])
+            result = main(["init", str(root)])
 
             self.assertEqual(result, 0)
             config = json.loads((root / "yt-maestro.json").read_text(encoding="utf-8"))
             self.assertEqual(config["name"], "collection")
 
-    @patch("builtins.input", side_effect=["My Library", "", "", "audio", "yes"])
-    def test_interactive_init_uses_answers(self, _input):
+    def test_init_accepts_library_name(self):
         with tempfile.TemporaryDirectory() as temporary_dir:
             root = Path(temporary_dir) / "music"
 
-            result = main(["init", str(root)])
+            result = main(["init", str(root), "--name", "My Library"])
 
             self.assertEqual(result, 0)
             config = json.loads((root / "yt-maestro.json").read_text(encoding="utf-8"))
             self.assertEqual(config["name"], "My Library")
-            self.assertEqual(config["paths"]["downloads"], "audio")
-
-    @patch("builtins.input", side_effect=["", "", "", "", "no"])
-    def test_interactive_init_can_be_cancelled(self, _input):
-        with tempfile.TemporaryDirectory() as temporary_dir:
-            root = Path(temporary_dir) / "music"
-
-            result = main(["init", str(root)])
-
-            self.assertEqual(result, 0)
-            self.assertFalse(root.exists())
-
-    @patch(
-        "builtins.input",
-        side_effect=["", "../albums", "records", "", "", "yes"],
-    )
-    def test_interactive_init_reprompts_for_invalid_path(self, _input):
-        with tempfile.TemporaryDirectory() as temporary_dir:
-            root = Path(temporary_dir) / "music"
-
-            result = main(["init", str(root)])
-
-            self.assertEqual(result, 0)
-            config = json.loads((root / "yt-maestro.json").read_text(encoding="utf-8"))
-            self.assertEqual(config["paths"]["albums"], "records")
-
 
 class AlbumCommandTests(unittest.TestCase):
     @patch("yt_maestro.commands.album.pipelines.download_album")
@@ -124,16 +97,61 @@ class AlbumCommandTests(unittest.TestCase):
     def test_download_reports_missing_album(self, download_album):
         with tempfile.TemporaryDirectory() as temporary_dir:
             root = Path(temporary_dir)
-            initialize(root, LibraryConfig(name="Music"))
+            Library(root=root, name="Music").initialize()
 
             result = main(["album", "download", "missing", "--library", str(root)])
 
         self.assertEqual(result, 1)
         download_album.assert_not_called()
 
+    @patch("yt_maestro.commands.album.pipelines.download_album")
+    def test_download_accepts_multiple_album_references(self, download_album):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir) / "library"
+            _create_album_library(root)
+            _write_album(root, "concerto", "Concerto")
+            download_album.return_value = [Path("first.m4a"), Path("second.m4a")]
+
+            result = main(
+                [
+                    "album",
+                    "download",
+                    "symphony",
+                    "concerto",
+                    "--library",
+                    str(root),
+                ]
+            )
+
+        self.assertEqual(result, 0)
+        self.assertEqual(download_album.call_count, 2)
+        self.assertEqual(
+            [call.args[0].title for call in download_album.call_args_list],
+            ["Symphony", "Concerto"],
+        )
+
+    @patch("yt_maestro.commands.album.pipelines.download_album")
+    def test_download_all_uses_every_album_file(self, download_album):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir) / "library"
+            _create_album_library(root)
+            _write_album(root, "concerto", "Concerto")
+            download_album.return_value = [Path("first.m4a"), Path("second.m4a")]
+
+            result = main(
+                ["album", "download", "--all", "--library", str(root)]
+            )
+
+        self.assertEqual(result, 0)
+        self.assertEqual(download_album.call_count, 2)
+        self.assertEqual(
+            [call.args[0].title for call in download_album.call_args_list],
+            ["Concerto", "Symphony"],
+        )
+
 
 def _create_album_library(root: Path) -> None:
-    initialize(root, LibraryConfig(name="Music"))
+    Library(root=root, name="Music").initialize()
     (root / "artists" / "beethoven.json").write_text(
         json.dumps(
             {
@@ -143,10 +161,14 @@ def _create_album_library(root: Path) -> None:
         ),
         encoding="utf-8",
     )
-    (root / "albums" / "symphony.json").write_text(
+    _write_album(root, "symphony", "Symphony")
+
+
+def _write_album(root: Path, reference: str, title: str) -> None:
+    (root / "albums" / f"{reference}.json").write_text(
         json.dumps(
             {
-                "title": "Symphony",
+                "title": title,
                 "artist": "beethoven",
                 "url": "https://example.com/full",
                 "tracks": [
