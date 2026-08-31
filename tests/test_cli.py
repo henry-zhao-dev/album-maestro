@@ -125,7 +125,12 @@ class AlbumCommandTests(unittest.TestCase):
 
     @patch(
         "builtins.input",
-        side_effect=("New Album", "New Artist", "Jazz", "https://example.com"),
+        side_effect=(
+            "Not Beethoven's Work",
+            "Beethoven's Lunch",
+            "Jazz",
+            "https://example.com",
+        ),
     )
     def test_create_writes_an_unknown_artist_with_the_entered_genre(self, input_mock):
         with tempfile.TemporaryDirectory() as temporary_dir:
@@ -137,8 +142,8 @@ class AlbumCommandTests(unittest.TestCase):
             with redirect_stdout(output):
                 result = main(["album", "create", "--library", str(root)])
 
-            album_path = root / "albums" / "new-album.json"
-            artist_path = root / "artists" / "new-artist.json"
+            album_path = root / "albums" / "not-beethovens-work.json"
+            artist_path = root / "artists" / "beethovens-lunch.json"
             album = json.loads(album_path.read_text(encoding="utf-8"))
             artist = json.loads(artist_path.read_text(encoding="utf-8"))
 
@@ -152,8 +157,11 @@ class AlbumCommandTests(unittest.TestCase):
                 call("Album shared URL (optional): "),
             ],
         )
-        self.assertEqual(artist, {"name": "New Artist", "default_genre": "Jazz"})
-        self.assertEqual(album["artist"], "new-artist")
+        self.assertEqual(
+            artist,
+            {"name": "Beethoven's Lunch", "default_genre": "Jazz"},
+        )
+        self.assertEqual(album["artist"], "beethovens-lunch")
         self.assertNotIn("genre", album)
 
     @patch(

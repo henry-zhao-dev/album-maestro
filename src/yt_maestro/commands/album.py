@@ -299,7 +299,8 @@ def _reference_from_title(title: str) -> str:
 def _reference_from_text(value: str, *, label: str) -> str:
     """Convert display text to a canonical catalog reference."""
 
-    normalized = unicodedata.normalize("NFKD", value).encode("ascii", "ignore").decode()
+    normalized = re.sub(r"['’ʼ]", "", unicodedata.normalize("NFKD", value))
+    normalized = normalized.encode("ascii", "ignore").decode()
     reference = re.sub(r"[^a-z0-9]+", "-", normalized.casefold()).strip("-")
     if not reference:
         raise ValueError(f"{label} cannot form a catalog reference")
