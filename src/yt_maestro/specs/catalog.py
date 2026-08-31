@@ -1,8 +1,8 @@
-"""Loading and validation for album specifications."""
+"""Load and parse artist and album catalog specifications."""
 
 from collections.abc import Mapping
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from yt_maestro.models import Album, AlbumTrack, Artist, Chapter
 from yt_maestro.specs._parsing import (
@@ -11,18 +11,21 @@ from yt_maestro.specs._parsing import (
     load_json,
     optional_string,
     optional_timestamp,
-    reject_unknown_fields,
     required_string,
 )
-from yt_maestro.specs.artist import load_artist
+from yt_maestro.specs._schema import validate_object
+
+
+def load_artist(path: str | Path) -> Artist:
+    """Load and validate one artist JSON file."""
+
+    return _parse_artist(load_json(path, label="artist"))
 
 
 def load_album(path: str | Path, artists_dir: str | Path) -> Album:
     """Load an album and resolve all artist IDs through ``artists_dir``."""
 
-    data = load_json(path, label="album")
-    if not isinstance(data, Mapping):
-        raise SpecError("album must be an object")
+    data = validate_object(load_json(path, label="album"), "album", label="album")
 
     # Resolve every reference up front so parsing can work with Artist objects
     # rather than repeatedly reading artist files track by track.
@@ -39,26 +42,39 @@ def load_album(path: str | Path, artists_dir: str | Path) -> Album:
         reference: load_artist(Path(artists_dir) / f"{reference}.json")
         for reference in artist_references
     }
-    return parse_album(data, artists)
+    return _parse_validated_album(data, artists)
 
 
-def parse_album(data: Any, artists: Mapping[str, Artist]) -> Album:
+def _parse_artist(data: Any) -> Artist:
+    """Validate a decoded artist object."""
+
+    data = validate_object(data, "artist", label="artist")
+    return Artist(
+        name=required_string(data, "name"),
+        default_genre=optional_string(data, "default_genre"),
+    )
+
+
+def _parse_album(data: Any, artists: Mapping[str, Artist]) -> Album:
     """Validate a decoded album object using artists keyed by catalog ID."""
 
-    if not isinstance(data, Mapping):
-        raise SpecError("album must be an object")
-    reject_unknown_fields(data, {"title", "artist", "genre", "url", "tracks"}, "album")
+    data = validate_object(data, "album", label="album")
+    return _parse_validated_album(data, artists)
+
+
+def _parse_validated_album(
+    data: Mapping[str, Any], artists: Mapping[str, Artist]
+) -> Album:
+    """Convert a schema-valid album object into the domain model."""
 
     album_artist = _resolve_artist(data, artists)
     album_url = optional_string(data, "url")
-    tracks_data = data.get("tracks")
-    if not isinstance(tracks_data, list) or not tracks_data:
-        raise SpecError("'tracks' must be a non-empty list")
+    tracks_data = cast(list[Mapping[str, Any]], data["tracks"])
 
     tracks: list[AlbumTrack] = []
     for index, track_data in enumerate(tracks_data, start=1):
         try:
-            tracks.append(_parse_track(track_data, album_url, artists))
+            tracks.append(_parse_track(track_data, artists))
         except SpecError as error:
             raise SpecError(f"track {index}: {error}") from error
 
@@ -71,21 +87,10 @@ def parse_album(data: Any, artists: Mapping[str, Artist]) -> Album:
     )
 
 
-def _parse_track(
-    data: Any, album_url: str | None, artists: Mapping[str, Artist]
-) -> AlbumTrack:
-    """Validate one track, retaining optional album-level overrides."""
-
-    if not isinstance(data, Mapping):
-        raise SpecError("must be an object")
-    reject_unknown_fields(
-        data, {"title", "artist", "url", "start", "end", "chapters"}, "track"
-    )
+def _parse_track(data: Mapping[str, Any], artists: Mapping[str, Artist]) -> AlbumTrack:
+    """Convert one schema-valid track, retaining album-level overrides."""
 
     url = optional_string(data, "url")
-    if not url and not album_url:
-        raise SpecError("requires 'url' because the album has no shared 'url'")
-
     start_ms = optional_timestamp(data, "start")
     end_ms = optional_timestamp(data, "end")
     if start_ms is not None and end_ms is not None and end_ms <= start_ms:
@@ -99,20 +104,17 @@ def _parse_track(
         url=url,
         start_ms=start_ms,
         end_ms=end_ms,
-        chapters=tuple(_parse_chapters(data.get("chapters", []))),
+        chapters=tuple(
+            _parse_chapters(cast(list[Mapping[str, Any]], data.get("chapters", [])))
+        ),
     )
 
 
-def _parse_chapters(data: Any) -> list[Chapter]:
-    """Validate and chronologically order source-relative chapter markers."""
-
-    if not isinstance(data, list):
-        raise SpecError("'chapters' must be a list")
+def _parse_chapters(data: list[Mapping[str, Any]]) -> list[Chapter]:
+    """Convert and chronologically order schema-valid chapter markers."""
 
     chapters: list[Chapter] = []
     for index, chapter_data in enumerate(data, start=1):
-        if not isinstance(chapter_data, Mapping):
-            raise SpecError(f"chapter {index} must be an object")
         chapter_start = optional_timestamp(chapter_data, "start")
         if chapter_start is None:
             raise SpecError(f"chapter {index} requires 'start'")

@@ -3,19 +3,16 @@
 from yt_maestro.specs._parsing import (
     SpecError,
     catalog_reference,
-    parse_timestamp,
+    load_json,
     required_string,
 )
-from yt_maestro.specs.album import load_album, parse_album
-from yt_maestro.specs.artist import load_artist, parse_artist
+from yt_maestro.specs.catalog import load_album, load_artist
 
 __all__ = [
     "SpecError",
     "catalog_reference",
     "load_album",
     "load_artist",
-    "parse_album",
-    "parse_artist",
-    "parse_timestamp",
+    "load_json",
     "required_string",
 ]

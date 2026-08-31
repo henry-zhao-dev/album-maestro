@@ -4,7 +4,7 @@ import argparse
 import logging
 from collections.abc import Sequence
 
-from yt_maestro import pipelines, specs
+from yt_maestro import pipeline, specs
 from yt_maestro.commands import prompts
 from yt_maestro.commands.base import Command
 from yt_maestro.library import Library, LibraryError
@@ -94,7 +94,7 @@ class DownloadCommand(Command):
         existing = {
             path
             for _, album in albums
-            for path in pipelines.existing_album_tracks(album, destination)
+            for path in pipeline.existing_album_tracks(album, destination)
         }
         if existing:
             logger.warning("%s track files already exist", len(existing))
@@ -109,7 +109,7 @@ class DownloadCommand(Command):
 
         for index, (reference, album) in enumerate(albums, start=1):
             logger.info("Downloading album %s of %s: %s", index, len(albums), reference)
-            outputs = pipelines.download_album(album, destination)
+            outputs = pipeline.download_album(album, destination)
             if len(outputs) != len(album.tracks):
                 failed = True
 
