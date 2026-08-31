@@ -66,6 +66,11 @@ class Library:
 
         return [path.stem for path in sorted(self.albums_dir.glob("*.json"))]
 
+    def artist_references(self) -> list[str]:
+        """Return every artist reference in filename order."""
+
+        return [path.stem for path in sorted(self.artists_dir.glob("*.json"))]
+
     def load_album(self, reference: str) -> Album:
         """Load an album and resolve its artist references."""
 

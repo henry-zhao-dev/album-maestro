@@ -4,7 +4,7 @@ import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 from yt_maestro.cli import main
 from yt_maestro.library import Library
@@ -76,6 +76,102 @@ class InitCommandTests(unittest.TestCase):
 
 
 class AlbumCommandTests(unittest.TestCase):
+    @patch(
+        "builtins.input",
+        side_effect=(
+            "Beethoven Symphony No. 5",
+            "Ludwig Van Beethoven",
+            "",
+            "https://youtu.be/link-to-symphony",
+        ),
+    )
+    def test_create_writes_an_album_draft(self, input_mock):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir) / "library"
+            Library(root=root, name="Music").initialize()
+            _write_artist(root)
+            output = StringIO()
+
+            with redirect_stdout(output):
+                result = main(["album", "create", "--library", str(root)])
+
+            album_path = root / "albums" / "beethoven-symphony-no-5.json"
+            album = json.loads(album_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(result, 0)
+        self.assertEqual(
+            input_mock.call_args_list,
+            [
+                call("Album title: "),
+                call("Album artist: "),
+                call("Album genre (optional) [Classical]: "),
+                call("Album shared URL (optional): "),
+            ],
+        )
+        self.assertEqual(
+            album,
+            {
+                "title": "Beethoven Symphony No. 5",
+                "artist": "beethoven",
+                "url": "https://youtu.be/link-to-symphony",
+                "tracks": [],
+            },
+        )
+        self.assertIn(
+            "Album created at albums/beethoven-symphony-no-5.json",
+            output.getvalue(),
+        )
+        self.assertIn("You can edit JSON to create tracks.", output.getvalue())
+
+    @patch(
+        "builtins.input",
+        side_effect=("New Album", "New Artist", "Jazz", "https://example.com"),
+    )
+    def test_create_writes_an_unknown_artist_with_the_entered_genre(self, input_mock):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir) / "library"
+            Library(root=root, name="Music").initialize()
+            _write_artist(root)
+            output = StringIO()
+
+            with redirect_stdout(output):
+                result = main(["album", "create", "--library", str(root)])
+
+            album_path = root / "albums" / "new-album.json"
+            artist_path = root / "artists" / "new-artist.json"
+            album = json.loads(album_path.read_text(encoding="utf-8"))
+            artist = json.loads(artist_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(result, 0)
+        self.assertEqual(
+            input_mock.call_args_list,
+            [
+                call("Album title: "),
+                call("Album artist: "),
+                call("Album genre (optional): "),
+                call("Album shared URL (optional): "),
+            ],
+        )
+        self.assertEqual(artist, {"name": "New Artist", "default_genre": "Jazz"})
+        self.assertEqual(album["artist"], "new-artist")
+        self.assertNotIn("genre", album)
+
+    @patch("builtins.input", return_value="Existing Album")
+    def test_create_does_not_replace_an_existing_album(self, _input):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir) / "library"
+            Library(root=root, name="Music").initialize()
+            album_path = root / "albums" / "existing-album.json"
+            album_path.write_text("existing", encoding="utf-8")
+
+            with self.assertLogs("yt_maestro.commands.album", level="ERROR"):
+                result = main(["album", "create", "--library", str(root)])
+
+            contents = album_path.read_text(encoding="utf-8")
+
+        self.assertEqual(result, 1)
+        self.assertEqual(contents, "existing")
+
     @patch("yt_maestro.commands.album.pipeline.download_album")
     def test_download_loads_album_from_library(self, download_album):
         with tempfile.TemporaryDirectory() as temporary_dir:
@@ -204,6 +300,11 @@ class AlbumCommandTests(unittest.TestCase):
 
 def _create_album_library(root: Path) -> None:
     Library(root=root, name="Music").initialize()
+    _write_artist(root)
+    _write_album(root, "symphony", "Symphony")
+
+
+def _write_artist(root: Path) -> None:
     (root / "artists" / "beethoven.json").write_text(
         json.dumps(
             {
@@ -213,7 +314,6 @@ def _create_album_library(root: Path) -> None:
         ),
         encoding="utf-8",
     )
-    _write_album(root, "symphony", "Symphony")
 
 
 def _write_album(root: Path, reference: str, title: str) -> None:

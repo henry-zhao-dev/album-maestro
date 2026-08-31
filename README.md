@@ -50,10 +50,25 @@ repeating its metadata:
 }
 ```
 
-Artist aliases are not part of the schema yet. A future CLI may accept aliases
-or display names as user input, but it should resolve them to the canonical ID
-before writing album JSON. Ambiguous matches should be presented to the user
-rather than guessed.
+Artist aliases are not part of the schema yet. Album creation accepts an
+artist's display name and resolves it to the canonical ID before writing JSON.
+Ambiguous matches are rejected rather than guessed.
+
+## Create an album
+
+Create an album draft interactively from a library directory:
+
+```shell
+yt-maestro album create
+```
+
+The command derives the album filename from its title and resolves the album
+artist by display name. If the artist does not exist, it creates an artist file
+using the display name and stores the entered genre as that artist's default.
+For an existing artist, its default genre is offered by the genre prompt. The
+album only stores a genre when it overrides an existing artist's default, and
+is created with an empty `tracks` array for you to edit. Use `--library` when
+running the command outside the library directory.
 
 ## Download an album
 
