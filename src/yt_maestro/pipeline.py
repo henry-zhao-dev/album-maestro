@@ -18,13 +18,15 @@ class PipelineError(ValueError):
     """Raised when catalog data cannot be transformed into output audio."""
 
 
-def download_album(album: Album, output_dir: str | Path = ".") -> list[Path]:
+def download_album(
+    album: Album, output_dir: str | Path = ".", overwrite: bool = False
+) -> list[Path]:
     """Download, transform, and organize every track in an album."""
 
     started_at = time.monotonic()
     logger.info('Downloading album "%s" (%s tracks)', album.title, len(album.tracks))
 
-    outputs = _download_tracks(album.requests(), output_dir)
+    outputs = _download_tracks(album.requests(), output_dir, overwrite)
 
     message = 'Finished album "%s" in %.1fs (%s/%s tracks created)'
     log = logger.info if len(outputs) == len(album.tracks) else logger.warning
@@ -42,16 +44,17 @@ def existing_album_tracks(album: Album, output_dir: str | Path = ".") -> list[Pa
     """Return the output paths that already exist for an album."""
 
     destination = Path(output_dir).expanduser().resolve()
-    suffix = f".{downloader.DEFAULT_AUDIO_FORMAT}"
     return [
         path
         for track in album.requests()
-        if (path := _track_output_path(track, destination, suffix)).exists()
+        if (path := _track_output_path(track, destination)).exists()
     ]
 
 
 def _download_tracks(
-    tracks: Sequence[TrackRequest], output_dir: str | Path = "."
+    tracks: Sequence[TrackRequest],
+    output_dir: str | Path = ".",
+    overwrite: bool = False,
 ) -> list[Path]:
     """Download each unique source once and create its requested tracks.
 
@@ -71,6 +74,12 @@ def _download_tracks(
         temp_dir = Path(temp)
 
         for index, track in enumerate(tracks, start=1):
+            track_path = _track_output_path(track, destination)
+            if not overwrite and track_path.exists():
+                logger.info("Skipped existing track %s/%s", index, track.title)
+                outputs.append(track_path)
+                continue
+
             if track.url not in sources:
                 source_number = source_numbers[track.url]
                 logger.info(
@@ -135,10 +144,12 @@ def _download_tracks(
     return outputs
 
 
-def _download_track(track: TrackRequest, output_dir: str | Path = ".") -> Path | None:
+def _download_track(
+    track: TrackRequest, output_dir: str | Path = ".", overwrite: bool = False
+) -> Path | None:
     """Download, transform, and organize one validated track."""
 
-    outputs = _download_tracks((track,), output_dir)
+    outputs = _download_tracks((track,), output_dir, overwrite)
     return outputs[0] if outputs else None
 
 
@@ -183,7 +194,11 @@ def _create_track(
     return final_path
 
 
-def _track_output_path(track: TrackRequest, destination: Path, suffix: str) -> Path:
+def _track_output_path(
+    track: TrackRequest,
+    destination: Path,
+    suffix: str = f".{downloader.DEFAULT_AUDIO_FORMAT}",
+) -> Path:
     """Return the final library path for a track."""
 
     return destination / track.album_artist / track.album / f"{track.title}{suffix}"

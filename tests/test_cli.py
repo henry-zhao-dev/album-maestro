@@ -86,14 +86,17 @@ class AlbumCommandTests(unittest.TestCase):
             result = main(["album", "download", "symphony", "--library", str(root)])
 
         self.assertEqual(result, 0)
-        album, destination = download_album.call_args.args
+        album, destination, overwrite = download_album.call_args.args
         self.assertEqual(album.title, "Symphony")
         self.assertEqual(album.album_artist.name, "Ludwig van Beethoven")
         self.assertEqual(destination, root.resolve() / "downloads")
+        self.assertFalse(overwrite)
 
     @patch("yt_maestro.commands.album.pipeline.download_album")
     @patch("yt_maestro.commands.album.prompts.confirm", return_value=False)
-    def test_download_confirms_before_overwriting(self, confirm, download_album):
+    def test_download_skips_existing_tracks_when_overwrite_declined(
+        self, confirm, download_album
+    ):
         with tempfile.TemporaryDirectory() as temporary_dir:
             root = Path(temporary_dir) / "library"
             _create_album_library(root)
@@ -102,14 +105,16 @@ class AlbumCommandTests(unittest.TestCase):
             )
             existing.parent.mkdir(parents=True)
             existing.touch()
+            download_album.return_value = [existing, Path("second.m4a")]
 
             result = main(["album", "download", "symphony", "--library", str(root)])
 
         self.assertEqual(result, 0)
-        confirm.assert_called_once_with(
-            "Continue and overwrite existing tracks?", default=False
-        )
-        download_album.assert_not_called()
+        confirm.assert_called_once_with("Overwrite existing tracks?", default=False)
+        album, destination, overwrite = download_album.call_args.args
+        self.assertEqual(album.title, "Symphony")
+        self.assertEqual(destination, root.resolve() / "downloads")
+        self.assertFalse(overwrite)
 
     @patch("yt_maestro.commands.album.pipeline.download_album")
     @patch("yt_maestro.commands.album.prompts.confirm")
@@ -137,7 +142,10 @@ class AlbumCommandTests(unittest.TestCase):
 
         self.assertEqual(result, 0)
         confirm.assert_not_called()
-        download_album.assert_called_once()
+        album, destination, overwrite = download_album.call_args.args
+        self.assertEqual(album.title, "Symphony")
+        self.assertEqual(destination, root.resolve() / "downloads")
+        self.assertTrue(overwrite)
 
     @patch("yt_maestro.commands.album.pipeline.download_album")
     def test_download_reports_missing_album(self, download_album):
