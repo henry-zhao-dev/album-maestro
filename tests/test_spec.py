@@ -5,7 +5,7 @@ from pathlib import Path
 
 from yt_maestro.models import Artist
 from yt_maestro.specs import SpecError, load_album
-from yt_maestro.specs._parsing import parse_timestamp
+from yt_maestro.specs.parsing import _parse_timestamp
 from yt_maestro.specs.catalog import _parse_album, _parse_artist
 
 
@@ -181,13 +181,13 @@ class AlbumTests(unittest.TestCase):
 
 class TimestampTests(unittest.TestCase):
     def test_supported_timestamp_forms(self):
-        self.assertEqual(parse_timestamp("1.25"), 1_250)
-        self.assertEqual(parse_timestamp("02:03.5"), 123_500)
-        self.assertEqual(parse_timestamp("1:02:03"), 3_723_000)
+        self.assertEqual(_parse_timestamp("1.25"), 1_250)
+        self.assertEqual(_parse_timestamp("02:03.5"), 123_500)
+        self.assertEqual(_parse_timestamp("1:02:03"), 3_723_000)
 
     def test_rejects_non_finite_timestamp(self):
         with self.assertRaises(SpecError):
-            parse_timestamp("nan")
+            _parse_timestamp("nan")
 
 
 if __name__ == "__main__":
