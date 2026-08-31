@@ -7,6 +7,7 @@ from pathlib import Path
 
 from yt_maestro import specs
 from yt_maestro.models import Album, Artist
+from yt_maestro.specs._parsing import catalog_reference, required_string
 
 
 class LibraryError(ValueError):
@@ -123,7 +124,7 @@ class Library:
 
         music_library = cls(
             root=resolved_root,
-            name=specs.required_string(data, "name", LibraryError),
+            name=required_string(data, "name", LibraryError),
         )
         music_library.validate()
         return music_library
@@ -137,7 +138,5 @@ def _catalog_filename(reference: str, *, label: str) -> str:
         raise specs.SpecError(f"{label} reference must be a filename, not a path")
 
     reference_without_extension = reference.removesuffix(".json")
-    canonical_reference = specs.catalog_reference(
-        reference_without_extension, label=label
-    )
+    canonical_reference = catalog_reference(reference_without_extension, label=label)
     return f"{canonical_reference}.json"

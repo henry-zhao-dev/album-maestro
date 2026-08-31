@@ -20,9 +20,8 @@ def validate_object(data: Any, schema_name: str, *, label: str) -> Mapping[str, 
         default=None,
     )
     if error is not None:
-        raise SpecError(
-            f"{_format_location(label, error.absolute_path)}: {error.message}"
-        )
+        location = _format_location(label, error.absolute_path)
+        raise SpecError(f"{location}: {error.message}")
     return cast(Mapping[str, Any], data)
 
 
@@ -30,9 +29,7 @@ def validate_object(data: Any, schema_name: str, *, label: str) -> Mapping[str, 
 def _validator(schema_name: str) -> Draft202012Validator:
     """Load and compile a packaged schema once per process."""
 
-    resource = files("yt_maestro").joinpath(
-        "schemas", f"{schema_name}.schema.json"
-    )
+    resource = files("yt_maestro").joinpath("schemas", f"{schema_name}.schema.json")
     schema = json.loads(resource.read_text(encoding="utf-8"))
     Draft202012Validator.check_schema(schema)
     return Draft202012Validator(schema)

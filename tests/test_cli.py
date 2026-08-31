@@ -76,7 +76,7 @@ class InitCommandTests(unittest.TestCase):
 
 
 class AlbumCommandTests(unittest.TestCase):
-    @patch("yt_maestro.commands.album.pipelines.download_album")
+    @patch("yt_maestro.commands.album.pipeline.download_album")
     def test_download_loads_album_from_library(self, download_album):
         with tempfile.TemporaryDirectory() as temporary_dir:
             root = Path(temporary_dir) / "library"
@@ -91,7 +91,7 @@ class AlbumCommandTests(unittest.TestCase):
         self.assertEqual(album.album_artist.name, "Ludwig van Beethoven")
         self.assertEqual(destination, root.resolve() / "downloads")
 
-    @patch("yt_maestro.commands.album.pipelines.download_album")
+    @patch("yt_maestro.commands.album.pipeline.download_album")
     @patch("yt_maestro.commands.album.prompts.confirm", return_value=False)
     def test_download_confirms_before_overwriting(self, confirm, download_album):
         with tempfile.TemporaryDirectory() as temporary_dir:
@@ -111,7 +111,7 @@ class AlbumCommandTests(unittest.TestCase):
         )
         download_album.assert_not_called()
 
-    @patch("yt_maestro.commands.album.pipelines.download_album")
+    @patch("yt_maestro.commands.album.pipeline.download_album")
     @patch("yt_maestro.commands.album.prompts.confirm")
     def test_overwrite_option_skips_confirmation(self, confirm, download_album):
         with tempfile.TemporaryDirectory() as temporary_dir:
@@ -139,7 +139,7 @@ class AlbumCommandTests(unittest.TestCase):
         confirm.assert_not_called()
         download_album.assert_called_once()
 
-    @patch("yt_maestro.commands.album.pipelines.download_album")
+    @patch("yt_maestro.commands.album.pipeline.download_album")
     def test_download_reports_missing_album(self, download_album):
         with tempfile.TemporaryDirectory() as temporary_dir:
             root = Path(temporary_dir)
@@ -150,7 +150,7 @@ class AlbumCommandTests(unittest.TestCase):
         self.assertEqual(result, 1)
         download_album.assert_not_called()
 
-    @patch("yt_maestro.commands.album.pipelines.download_album")
+    @patch("yt_maestro.commands.album.pipeline.download_album")
     def test_download_accepts_multiple_album_references(self, download_album):
         with tempfile.TemporaryDirectory() as temporary_dir:
             root = Path(temporary_dir) / "library"
@@ -176,7 +176,7 @@ class AlbumCommandTests(unittest.TestCase):
             ["Symphony", "Concerto"],
         )
 
-    @patch("yt_maestro.commands.album.pipelines.download_album")
+    @patch("yt_maestro.commands.album.pipeline.download_album")
     def test_download_all_uses_every_album_file(self, download_album):
         with tempfile.TemporaryDirectory() as temporary_dir:
             root = Path(temporary_dir) / "library"

@@ -4,19 +4,15 @@ import unittest
 from pathlib import Path
 
 from yt_maestro.models import Artist
-from yt_maestro.specs import (
-    SpecError,
-    load_album,
-    parse_album,
-    parse_artist,
-    parse_timestamp,
-)
+from yt_maestro.specs import SpecError, load_album
+from yt_maestro.specs._parsing import parse_timestamp
+from yt_maestro.specs.catalog import _parse_album, _parse_artist
 
 
 class AlbumTests(unittest.TestCase):
     def test_resolves_shared_url_into_numbered_track_requests(self):
         artist = Artist("Ludwig van Beethoven", "Classical")
-        album = parse_album(
+        album = _parse_album(
             {
                 "title": "Symphony No. 5",
                 "artist": "beethoven",
@@ -39,7 +35,7 @@ class AlbumTests(unittest.TestCase):
         self.assertEqual(tracks[1].start_ms, 510_000)
 
     def test_supports_a_different_url_for_each_track(self):
-        album = parse_album(
+        album = _parse_album(
             {
                 "title": "Songs",
                 "artist": "artist",
@@ -57,7 +53,7 @@ class AlbumTests(unittest.TestCase):
         )
 
     def test_resolves_track_artists_for_a_compilation(self):
-        album = parse_album(
+        album = _parse_album(
             {
                 "title": "Best of Romantic",
                 "artist": "various-artists",
@@ -125,7 +121,7 @@ class AlbumTests(unittest.TestCase):
         with self.assertRaisesRegex(
             SpecError, r"album\.tracks\[0\]: 'url' is a required property"
         ):
-            parse_album(
+            _parse_album(
                 {
                     "title": "Album",
                     "artist": "artist",
@@ -136,7 +132,7 @@ class AlbumTests(unittest.TestCase):
 
     def test_rejects_noncanonical_artist_reference(self):
         with self.assertRaisesRegex(SpecError, r"album\.artist: .*does not match"):
-            parse_album(
+            _parse_album(
                 {
                     "title": "Album",
                     "artist": "Example Artist",
@@ -150,7 +146,7 @@ class AlbumTests(unittest.TestCase):
         with self.assertRaisesRegex(
             SpecError, r"album\.tracks\[0\]\.chapters\[0\]: Additional properties"
         ):
-            parse_album(
+            _parse_album(
                 {
                     "title": "Album",
                     "artist": "artist",
@@ -167,7 +163,7 @@ class AlbumTests(unittest.TestCase):
 
     def test_album_schema_rejects_unknown_fields(self):
         with self.assertRaisesRegex(SpecError, "album: Additional properties"):
-            parse_album(
+            _parse_album(
                 {
                     "title": "Album",
                     "artist": "artist",
@@ -180,7 +176,7 @@ class AlbumTests(unittest.TestCase):
 
     def test_artist_schema_rejects_unknown_fields(self):
         with self.assertRaisesRegex(SpecError, "artist: Additional properties"):
-            parse_artist({"name": "Artist", "genre": "Classical"})
+            _parse_artist({"name": "Artist", "genre": "Classical"})
 
 
 class TimestampTests(unittest.TestCase):

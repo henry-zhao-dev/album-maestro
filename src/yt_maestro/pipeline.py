@@ -1,4 +1,4 @@
-"""Pipeline for downloading and building complete albums."""
+"""Download and build complete albums from resolved catalog models."""
 
 import logging
 import shutil
@@ -24,7 +24,7 @@ def download_album(album: Album, output_dir: str | Path = ".") -> list[Path]:
     started_at = time.monotonic()
     logger.info('Downloading album "%s" (%s tracks)', album.title, len(album.tracks))
 
-    outputs = download_tracks(album.requests(), output_dir)
+    outputs = _download_tracks(album.requests(), output_dir)
 
     message = 'Finished album "%s" in %.1fs (%s/%s tracks created)'
     log = logger.info if len(outputs) == len(album.tracks) else logger.warning
@@ -50,7 +50,7 @@ def existing_album_tracks(album: Album, output_dir: str | Path = ".") -> list[Pa
     ]
 
 
-def download_tracks(
+def _download_tracks(
     tracks: Sequence[TrackRequest], output_dir: str | Path = "."
 ) -> list[Path]:
     """Download each unique source once and create its requested tracks."""
@@ -131,10 +131,10 @@ def download_tracks(
     return outputs
 
 
-def download_track(track: TrackRequest, output_dir: str | Path = ".") -> Path | None:
+def _download_track(track: TrackRequest, output_dir: str | Path = ".") -> Path | None:
     """Download, transform, and organize one validated track."""
 
-    outputs = download_tracks((track,), output_dir)
+    outputs = _download_tracks((track,), output_dir)
     return outputs[0] if outputs else None
 
 
@@ -150,7 +150,7 @@ def _create_track(
     shutil.copy2(source, track_source)
 
     duration_ms = audio.audio_duration_ms(track_source)
-    audio_start_ms, audio_end_ms = resolve_time_range(track, duration_ms)
+    audio_start_ms, audio_end_ms = _resolve_time_range(track, duration_ms)
     # Each processing stage consumes the file produced by the previous one.
     current = str(track_source)
 
@@ -168,7 +168,7 @@ def _create_track(
     )
 
     if track.chapters:
-        chapters = resolve_chapters(track.chapters, audio_start_ms, audio_end_ms)
+        chapters = _resolve_chapters(track.chapters, audio_start_ms, audio_end_ms)
         current = audio.add_chapters(
             current, work_dir / f"chapters-{track_source.name}", chapters
         )
@@ -185,7 +185,7 @@ def _track_output_path(track: TrackRequest, destination: Path, suffix: str) -> P
     return destination / track.album_artist / track.album / f"{track.title}{suffix}"
 
 
-def resolve_time_range(track: TrackRequest, duration_ms: int) -> tuple[int, int]:
+def _resolve_time_range(track: TrackRequest, duration_ms: int) -> tuple[int, int]:
     """Resolve optional trim bounds against the downloaded file duration."""
 
     if duration_ms <= 0:
@@ -201,7 +201,7 @@ def resolve_time_range(track: TrackRequest, duration_ms: int) -> tuple[int, int]
     return start_ms, end_ms
 
 
-def resolve_chapters(
+def _resolve_chapters(
     chapters: Sequence[Chapter], audio_start_ms: int, audio_end_ms: int
 ) -> list[Chapter]:
     """Resolve chapters within the selected range of the source audio file."""

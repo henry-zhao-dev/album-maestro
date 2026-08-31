@@ -1,4 +1,4 @@
-"""Loading and validation for album specifications."""
+"""Load and parse artist and album catalog specifications."""
 
 from collections.abc import Mapping
 from pathlib import Path
@@ -14,7 +14,12 @@ from yt_maestro.specs._parsing import (
     required_string,
 )
 from yt_maestro.specs._schema import validate_object
-from yt_maestro.specs.artist import load_artist
+
+
+def load_artist(path: str | Path) -> Artist:
+    """Load and validate one artist JSON file."""
+
+    return _parse_artist(load_json(path, label="artist"))
 
 
 def load_album(path: str | Path, artists_dir: str | Path) -> Album:
@@ -37,17 +42,29 @@ def load_album(path: str | Path, artists_dir: str | Path) -> Album:
         reference: load_artist(Path(artists_dir) / f"{reference}.json")
         for reference in artist_references
     }
-    return _parse_album(data, artists)
+    return _parse_validated_album(data, artists)
 
 
-def parse_album(data: Any, artists: Mapping[str, Artist]) -> Album:
+def _parse_artist(data: Any) -> Artist:
+    """Validate a decoded artist object."""
+
+    data = validate_object(data, "artist", label="artist")
+    return Artist(
+        name=required_string(data, "name"),
+        default_genre=optional_string(data, "default_genre"),
+    )
+
+
+def _parse_album(data: Any, artists: Mapping[str, Artist]) -> Album:
     """Validate a decoded album object using artists keyed by catalog ID."""
 
     data = validate_object(data, "album", label="album")
-    return _parse_album(data, artists)
+    return _parse_validated_album(data, artists)
 
 
-def _parse_album(data: Mapping[str, Any], artists: Mapping[str, Artist]) -> Album:
+def _parse_validated_album(
+    data: Mapping[str, Any], artists: Mapping[str, Artist]
+) -> Album:
     """Convert a schema-valid album object into the domain model."""
 
     album_artist = _resolve_artist(data, artists)
@@ -70,9 +87,7 @@ def _parse_album(data: Mapping[str, Any], artists: Mapping[str, Artist]) -> Albu
     )
 
 
-def _parse_track(
-    data: Mapping[str, Any], artists: Mapping[str, Artist]
-) -> AlbumTrack:
+def _parse_track(data: Mapping[str, Any], artists: Mapping[str, Artist]) -> AlbumTrack:
     """Convert one schema-valid track, retaining album-level overrides."""
 
     url = optional_string(data, "url")
