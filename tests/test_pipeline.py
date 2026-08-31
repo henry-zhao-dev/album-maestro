@@ -92,6 +92,54 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(messages[2], "Creating track 1/2: First")
         self.assertEqual(messages[4], "Creating track 2/2: Second")
 
+    @patch("yt_maestro.pipeline._create_track")
+    @patch("yt_maestro.pipeline.downloader.download_audio")
+    def test_skips_an_existing_track_without_overwrite(
+        self, download_audio, create_track
+    ):
+        with tempfile.TemporaryDirectory() as output_dir:
+            track = _track_request()
+            existing = (
+                Path(output_dir).resolve() / "Artist" / "Album" / "Track.m4a"
+            )
+            existing.parent.mkdir(parents=True)
+            existing.write_text("existing", encoding="utf-8")
+
+            result = _download_track(track, output_dir)
+
+            self.assertEqual(result, existing)
+            self.assertEqual(existing.read_text(encoding="utf-8"), "existing")
+        download_audio.assert_not_called()
+        create_track.assert_not_called()
+
+    @patch(
+        "yt_maestro.pipeline.audio.add_metadata",
+        side_effect=lambda source, output, metadata: source,
+    )
+    @patch("yt_maestro.pipeline.audio.audio_duration_ms", return_value=10_000)
+    @patch("yt_maestro.pipeline.downloader.download_audio")
+    def test_overwrites_an_existing_track(
+        self, download_audio, audio_duration_ms, add_metadata
+    ):
+        with tempfile.TemporaryDirectory() as output_dir:
+            root = Path(output_dir).resolve()
+            source = root / "source.m4a"
+            source.write_text("replacement", encoding="utf-8")
+            download_audio.return_value = source
+
+            track = _track_request()
+            existing = root / "Artist" / "Album" / "Track.m4a"
+            existing.parent.mkdir(parents=True)
+            existing.write_text("existing", encoding="utf-8")
+
+            result = _download_track(track, output_dir, overwrite=True)
+
+            self.assertEqual(result, existing)
+            self.assertEqual(existing.read_text(encoding="utf-8"), "replacement")
+        download_audio.assert_called_once()
+        audio_duration_ms.assert_called_once()
+        add_metadata.assert_called_once()
+
     def test_resolves_default_time_range(self):
         self.assertEqual(_resolve_time_range(_track_request(), 10_000), (0, 10_000))
 

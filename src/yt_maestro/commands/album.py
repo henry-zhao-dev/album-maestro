@@ -100,16 +100,14 @@ class DownloadCommand(Command):
             logger.warning("%s track files already exist", len(existing))
             for path in sorted(existing):
                 logger.warning("Existing track: %s", path)
-
-            if not overwrite and not prompts.confirm(
-                "Continue and overwrite existing tracks?", default=False
-            ):
-                logger.info("Album download cancelled")
-                return 1 if failed else 0
+            if not overwrite:
+                overwrite = prompts.confirm(
+                    "Overwrite existing tracks?", default=False
+                )
 
         for index, (reference, album) in enumerate(albums, start=1):
             logger.info("Downloading album %s of %s: %s", index, len(albums), reference)
-            outputs = pipeline.download_album(album, destination)
+            outputs = pipeline.download_album(album, destination, overwrite)
             if len(outputs) != len(album.tracks):
                 failed = True
 
