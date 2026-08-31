@@ -83,5 +83,86 @@ class LoadLibraryTests(unittest.TestCase):
                     music_library.load_album(reference)
 
 
+class CatalogMutationTests(unittest.TestCase):
+    def test_creates_artist_with_normalized_reference_and_genre(self):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir)
+            music_library = Library(root=root, name="Music")
+            music_library.initialize()
+
+            reference = music_library.create_artist(
+                " Beethoven's Lunch ", default_genre=" Jazz "
+            )
+
+            artist = json.loads(
+                (root / "artists" / f"{reference}.json").read_text(encoding="utf-8")
+            )
+
+        self.assertEqual(reference, "beethovens-lunch")
+        self.assertEqual(
+            artist,
+            {"name": "Beethoven's Lunch", "default_genre": "Jazz"},
+        )
+
+    def test_updates_artist_default_genre(self):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir)
+            music_library = Library(root=root, name="Music")
+            music_library.initialize()
+            (root / "artists" / "beethoven.json").write_text(
+                json.dumps(
+                    {
+                        "name": "Ludwig van Beethoven",
+                        "default_genre": "Classical",
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            music_library.update_artist_default_genre("beethoven", " Jazz ")
+
+            artist = json.loads(
+                (root / "artists" / "beethoven.json").read_text(encoding="utf-8")
+            )
+
+        self.assertEqual(artist["default_genre"], "Jazz")
+
+    def test_creates_album_with_genre_override_and_shared_url(self):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir)
+            music_library = Library(root=root, name="Music")
+            music_library.initialize()
+            (root / "artists" / "beethoven.json").write_text(
+                json.dumps(
+                    {
+                        "name": "Ludwig van Beethoven",
+                        "default_genre": "Classical",
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            album_path = music_library.create_album(
+                " Symphony No. 5 ",
+                "beethoven",
+                genre=" Jazz ",
+                shared_url=" https://example.com/full ",
+            )
+
+            album = json.loads(album_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(album_path, root.resolve() / "albums" / "symphony-no-5.json")
+        self.assertEqual(
+            album,
+            {
+                "title": "Symphony No. 5",
+                "artist": "beethoven",
+                "genre": "Jazz",
+                "url": "https://example.com/full",
+                "tracks": [],
+            },
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
