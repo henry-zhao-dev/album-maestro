@@ -156,6 +156,87 @@ class AlbumCommandTests(unittest.TestCase):
         self.assertEqual(album["artist"], "new-artist")
         self.assertNotIn("genre", album)
 
+    @patch(
+        "builtins.input",
+        side_effect=("Jazz Album", "Ludwig van Beethoven", "Jazz", ""),
+    )
+    @patch("yt_maestro.commands.album.prompts.confirm", return_value=False)
+    def test_create_keeps_a_changed_genre_as_an_album_override(self, confirm, _input):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir) / "library"
+            Library(root=root, name="Music").initialize()
+            _write_artist(root)
+
+            result = main(["album", "create", "--library", str(root)])
+
+            album = json.loads(
+                (root / "albums" / "jazz-album.json").read_text(encoding="utf-8")
+            )
+            artist = json.loads(
+                (root / "artists" / "beethoven.json").read_text(encoding="utf-8")
+            )
+
+        self.assertEqual(result, 0)
+        confirm.assert_called_once_with(
+            "Set 'Jazz' as the default genre for Ludwig van Beethoven?",
+            default=False,
+        )
+        self.assertEqual(artist["default_genre"], "Classical")
+        self.assertEqual(album["genre"], "Jazz")
+
+    @patch(
+        "builtins.input",
+        side_effect=("Jazz Album", "Ludwig van Beethoven", "Jazz", ""),
+    )
+    @patch("yt_maestro.commands.album.prompts.confirm", return_value=True)
+    def test_create_updates_an_existing_artists_default_genre(self, confirm, _input):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir) / "library"
+            Library(root=root, name="Music").initialize()
+            _write_artist(root)
+
+            result = main(["album", "create", "--library", str(root)])
+
+            album = json.loads(
+                (root / "albums" / "jazz-album.json").read_text(encoding="utf-8")
+            )
+            artist = json.loads(
+                (root / "artists" / "beethoven.json").read_text(encoding="utf-8")
+            )
+
+        self.assertEqual(result, 0)
+        confirm.assert_called_once()
+        self.assertEqual(artist["default_genre"], "Jazz")
+        self.assertNotIn("genre", album)
+
+    @patch(
+        "builtins.input",
+        side_effect=("No Genre Album", "Ludwig van Beethoven", "", ""),
+    )
+    @patch("yt_maestro.commands.album.prompts.confirm")
+    def test_create_accepts_no_genre_for_an_existing_artist_without_a_default(
+        self, confirm, input_mock
+    ):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir) / "library"
+            Library(root=root, name="Music").initialize()
+            _write_artist(root, default_genre=None)
+
+            result = main(["album", "create", "--library", str(root)])
+
+            album = json.loads(
+                (root / "albums" / "no-genre-album.json").read_text(encoding="utf-8")
+            )
+            artist = json.loads(
+                (root / "artists" / "beethoven.json").read_text(encoding="utf-8")
+            )
+
+        self.assertEqual(result, 0)
+        self.assertIn(call("Album genre (optional): "), input_mock.call_args_list)
+        confirm.assert_not_called()
+        self.assertNotIn("default_genre", artist)
+        self.assertNotIn("genre", album)
+
     @patch("builtins.input", return_value="Existing Album")
     def test_create_does_not_replace_an_existing_album(self, _input):
         with tempfile.TemporaryDirectory() as temporary_dir:
@@ -304,14 +385,13 @@ def _create_album_library(root: Path) -> None:
     _write_album(root, "symphony", "Symphony")
 
 
-def _write_artist(root: Path) -> None:
+def _write_artist(root: Path, default_genre: str | None = "Classical") -> None:
+    data = {"name": "Ludwig van Beethoven"}
+    if default_genre is not None:
+        data["default_genre"] = default_genre
+
     (root / "artists" / "beethoven.json").write_text(
-        json.dumps(
-            {
-                "name": "Ludwig van Beethoven",
-                "default_genre": "Classical",
-            }
-        ),
+        json.dumps(data),
         encoding="utf-8",
     )
 

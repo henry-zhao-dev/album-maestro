@@ -73,16 +73,15 @@ class CreateCommand(Command):
                     )
             else:
                 artist_reference, artist = artist_match
-                artist_path = None
+                artist_path = music_library.artists_dir / f"{artist_reference}.json"
         except (LibraryError, specs.SpecError, ValueError) as error:
             logger.error("Cannot create album: %s", error)
             return 1
 
         default_genre = artist.default_genre if artist is not None else None
         genre = prompts.text("Album genre (optional)", default=default_genre)
-        shared_url = prompts.text("Album shared URL (optional)")
 
-        if artist_path is not None:
+        if artist is None:
             artist_data: dict[str, object] = {"name": artist_name}
             if genre:
                 artist_data["default_genre"] = genre
@@ -91,12 +90,32 @@ class CreateCommand(Command):
             except LibraryError as error:
                 logger.error("Cannot create artist: %s", error)
                 return 1
+        elif (
+            genre
+            and genre != default_genre
+            and prompts.confirm(
+                f"Set {genre!r} as the default genre for {artist.name}?",
+                default=False,
+            )
+        ):
+            try:
+                _set_json_fields(
+                    artist_path,
+                    {"default_genre": genre},
+                    label="artist",
+                )
+                default_genre = genre
+            except LibraryError as error:
+                logger.error("Cannot update artist: %s", error)
+                return 1
+
+        shared_url = prompts.text("Album shared URL (optional)")
 
         data: dict[str, object] = {
             "title": title,
             "artist": artist_reference,
         }
-        if genre and artist is not None and genre != artist.default_genre:
+        if genre and artist is not None and genre != default_genre:
             data["genre"] = genre
         if shared_url:
             data["url"] = shared_url
@@ -297,4 +316,17 @@ def _write_json(path: Path, data: dict[str, object]) -> None:
     except FileExistsError as error:
         raise LibraryError(f"{path} already exists") from error
     except OSError as error:
+        raise LibraryError(str(error)) from error
+
+
+def _set_json_fields(path: Path, fields: dict[str, object], *, label: str) -> None:
+    """Replace the given fields in an existing catalog file."""
+
+    try:
+        data = specs.load_json(path, label=label)
+        data.update(fields)
+        with path.open("w", encoding="utf-8") as output:
+            json.dump(data, output, indent=2)
+            output.write("\n")
+    except (OSError, specs.SpecError) as error:
         raise LibraryError(str(error)) from error
