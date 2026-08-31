@@ -47,17 +47,6 @@ def required_string(
     return value.strip()
 
 
-def reject_unknown_fields(
-    data: Mapping[str, Any], allowed: set[str], label: str
-) -> None:
-    """Reject misspelled or unsupported fields rather than ignoring them."""
-
-    unknown = sorted(set(data) - allowed)
-    if unknown:
-        fields = ", ".join(repr(field) for field in unknown)
-        raise SpecError(f"{label} has unknown field(s): {fields}")
-
-
 def catalog_reference(value: str, *, label: str) -> str:
     """Validate a lowercase kebab-case catalog reference."""
 

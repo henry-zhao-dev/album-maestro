@@ -69,13 +69,13 @@ class Library:
     def load_album(self, reference: str) -> Album:
         """Load an album and resolve its artist references."""
 
-        filename = _catalog_filename(reference, "album")
+        filename = _catalog_filename(reference, label="album")
         return specs.load_album(self.albums_dir / filename, self.artists_dir)
 
     def load_artist(self, reference: str) -> Artist:
         """Load an artist by its catalog reference."""
 
-        filename = _catalog_filename(reference, "artist")
+        filename = _catalog_filename(reference, label="artist")
         return specs.load_artist(self.artists_dir / filename)
 
     def initialize(self) -> Path:
@@ -129,7 +129,7 @@ class Library:
         return music_library
 
 
-def _catalog_filename(reference: str, label: str) -> str:
+def _catalog_filename(reference: str, *, label: str) -> str:
     """Validate a catalog reference and return its JSON filename."""
 
     path = Path(reference)

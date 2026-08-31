@@ -8,6 +8,7 @@ from yt_maestro.specs import (
     SpecError,
     load_album,
     parse_album,
+    parse_artist,
     parse_timestamp,
 )
 
@@ -121,7 +122,9 @@ class AlbumTests(unittest.TestCase):
         self.assertEqual(album.requests()[0].genre, "Classical")
 
     def test_rejects_a_track_without_any_url(self):
-        with self.assertRaisesRegex(SpecError, "album has no shared 'url'"):
+        with self.assertRaisesRegex(
+            SpecError, r"album\.tracks\[0\]: 'url' is a required property"
+        ):
             parse_album(
                 {
                     "title": "Album",
@@ -132,7 +135,7 @@ class AlbumTests(unittest.TestCase):
             )
 
     def test_rejects_noncanonical_artist_reference(self):
-        with self.assertRaisesRegex(SpecError, "lowercase kebab-case"):
+        with self.assertRaisesRegex(SpecError, r"album\.artist: .*does not match"):
             parse_album(
                 {
                     "title": "Album",
@@ -142,6 +145,42 @@ class AlbumTests(unittest.TestCase):
                 },
                 {"Example Artist": Artist("Example Artist")},
             )
+
+    def test_schema_rejects_unknown_nested_fields(self):
+        with self.assertRaisesRegex(
+            SpecError, r"album\.tracks\[0\]\.chapters\[0\]: Additional properties"
+        ):
+            parse_album(
+                {
+                    "title": "Album",
+                    "artist": "artist",
+                    "url": "https://example.com",
+                    "tracks": [
+                        {
+                            "title": "Song",
+                            "chapters": [{"start": "0:00", "end": "1:00"}],
+                        }
+                    ],
+                },
+                {"artist": Artist("Artist")},
+            )
+
+    def test_album_schema_rejects_unknown_fields(self):
+        with self.assertRaisesRegex(SpecError, "album: Additional properties"):
+            parse_album(
+                {
+                    "title": "Album",
+                    "artist": "artist",
+                    "url": "https://example.com",
+                    "tracks": [{"title": "Song"}],
+                    "release_year": 2026,
+                },
+                {"artist": Artist("Artist")},
+            )
+
+    def test_artist_schema_rejects_unknown_fields(self):
+        with self.assertRaisesRegex(SpecError, "artist: Additional properties"):
+            parse_artist({"name": "Artist", "genre": "Classical"})
 
 
 class TimestampTests(unittest.TestCase):
