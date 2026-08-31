@@ -78,6 +78,30 @@ class InitCommandTests(unittest.TestCase):
 class AlbumCommandTests(unittest.TestCase):
     @patch(
         "builtins.input",
+        side_effect=("Bach Album", "bach", "2", "", ""),
+    )
+    def test_create_selects_from_multiple_matching_artists(self, _input):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir) / "library"
+            Library(root=root, name="Music").initialize()
+            _write_artist_file(root, "bach-cpe", "C.P.E. Bach")
+            _write_artist_file(root, "bach-js", "Johann Sebastian Bach")
+            output = StringIO()
+
+            with redirect_stdout(output):
+                result = main(["album", "create", "--library", str(root)])
+
+            album = json.loads(
+                (root / "albums" / "bach-album.json").read_text(encoding="utf-8")
+            )
+
+        self.assertEqual(result, 0)
+        self.assertEqual(album["artist"], "bach-js")
+        self.assertIn("1. C.P.E. Bach", output.getvalue())
+        self.assertIn("2. Johann Sebastian Bach", output.getvalue())
+
+    @patch(
+        "builtins.input",
         side_effect=(
             "Beethoven Symphony No. 5",
             "Ludwig Van Beethoven",
@@ -394,11 +418,20 @@ def _create_album_library(root: Path) -> None:
 
 
 def _write_artist(root: Path, default_genre: str | None = "Classical") -> None:
-    data = {"name": "Ludwig van Beethoven"}
+    _write_artist_file(root, "beethoven", "Ludwig van Beethoven", default_genre)
+
+
+def _write_artist_file(
+    root: Path,
+    reference: str,
+    name: str,
+    default_genre: str | None = "Classical",
+) -> None:
+    data = {"name": name}
     if default_genre is not None:
         data["default_genre"] = default_genre
 
-    (root / "artists" / "beethoven.json").write_text(
+    (root / "artists" / f"{reference}.json").write_text(
         json.dumps(data),
         encoding="utf-8",
     )

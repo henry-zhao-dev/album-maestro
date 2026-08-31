@@ -276,17 +276,29 @@ def _find_artist(music_library: Library, name: str) -> tuple[str, Artist] | None
     if not name:
         raise LibraryError("album artist must not be empty")
 
-    matches = [
-        (reference, artist)
-        for reference in music_library.artist_references()
-        if (artist := music_library.load_artist(reference)).name.casefold()
-        == name.casefold()
-    ]
+    query = name.casefold()
+    matches: list[tuple[str, Artist]] = []
+    for reference in music_library.artist_references():
+        artist = music_library.load_artist(reference)
+        if query in artist.name.casefold():
+            matches.append((reference, artist))
+
     if not matches:
         return None
+
     if len(matches) > 1:
-        references = ", ".join(reference for reference, _ in matches)
-        raise LibraryError(f"multiple artists named {name!r}: {references}")
+        print("Multiple matching artists found:")
+        for index, (_, artist) in enumerate(matches, start=1):
+            print(f"  {index}. {artist.name}")
+
+        artist_number = prompts.bounded_number(
+            "Select an artist",
+            minimum=1,
+            maximum=len(matches),
+        )
+        print()
+        return matches[artist_number - 1]
+
     return matches[0]
 
 
