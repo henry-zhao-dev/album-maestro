@@ -53,7 +53,11 @@ def existing_album_tracks(album: Album, output_dir: str | Path = ".") -> list[Pa
 def _download_tracks(
     tracks: Sequence[TrackRequest], output_dir: str | Path = "."
 ) -> list[Path]:
-    """Download each unique source once and create its requested tracks."""
+    """Download each unique source once and create its requested tracks.
+
+    Failed sources are cached so later tracks sharing the same URL are skipped
+    without retrying the download.
+    """
 
     destination = Path(output_dir).expanduser().resolve()
     destination.mkdir(parents=True, exist_ok=True)

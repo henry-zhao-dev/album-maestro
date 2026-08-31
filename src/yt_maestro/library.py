@@ -7,7 +7,6 @@ from pathlib import Path
 
 from yt_maestro import specs
 from yt_maestro.models import Album, Artist
-from yt_maestro.specs._parsing import catalog_reference, required_string
 
 
 class LibraryError(ValueError):
@@ -110,21 +109,18 @@ class Library:
 
         resolved_root = Path(root).expanduser().resolve()
         manifest = resolved_root / "yt-maestro.json"
+
         try:
-            data = json.loads(manifest.read_text(encoding="utf-8"))
-        except OSError as error:
-            raise LibraryError(f"cannot read library manifest: {error}") from error
-        except json.JSONDecodeError as error:
-            raise LibraryError(
-                f"invalid library manifest JSON at line {error.lineno}: {error.msg}"
-            ) from error
+            data = specs.load_json(manifest, label="library manifest")
+        except specs.SpecError as error:
+            raise LibraryError(str(error)) from error
 
         if not isinstance(data, Mapping) or data.get("kind") != "library":
             raise LibraryError("yt-maestro.json is not a library manifest")
 
         music_library = cls(
             root=resolved_root,
-            name=required_string(data, "name", LibraryError),
+            name=specs.required_string(data, "name", LibraryError),
         )
         music_library.validate()
         return music_library
@@ -137,6 +133,6 @@ def _catalog_filename(reference: str, *, label: str) -> str:
     if path.name != reference or reference in {"", ".", ".."}:
         raise specs.SpecError(f"{label} reference must be a filename, not a path")
 
-    reference_without_extension = reference.removesuffix(".json")
-    canonical_reference = catalog_reference(reference_without_extension, label=label)
+    reference_without_ext = reference.removesuffix(".json")
+    canonical_reference = specs.catalog_reference(reference_without_ext, label=label)
     return f"{canonical_reference}.json"
