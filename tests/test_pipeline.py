@@ -3,8 +3,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from yt_maestro.models import Chapter, TrackRequest
-from yt_maestro.pipeline import (
+from album_maestro.models import Chapter, TrackRequest
+from album_maestro.pipeline import (
     PipelineError,
     _download_track,
     _download_tracks,
@@ -14,19 +14,19 @@ from yt_maestro.pipeline import (
 
 
 class PipelineTests(unittest.TestCase):
-    @patch("yt_maestro.pipeline.shutil.move")
-    @patch("yt_maestro.pipeline.shutil.copy2")
+    @patch("album_maestro.pipeline.shutil.move")
+    @patch("album_maestro.pipeline.shutil.copy2")
     @patch(
-        "yt_maestro.pipeline.audio.add_chapters",
+        "album_maestro.pipeline.audio.add_chapters",
         return_value="chaptered.m4a",
     )
     @patch(
-        "yt_maestro.pipeline.audio.add_metadata",
+        "album_maestro.pipeline.audio.add_metadata",
         return_value="metadata.m4a",
     )
-    @patch("yt_maestro.pipeline.audio.trim_audio", return_value="trimmed.m4a")
-    @patch("yt_maestro.pipeline.audio.audio_duration_ms", return_value=20_000)
-    @patch("yt_maestro.pipeline.downloader.download_audio")
+    @patch("album_maestro.pipeline.audio.trim_audio", return_value="trimmed.m4a")
+    @patch("album_maestro.pipeline.audio.audio_duration_ms", return_value=20_000)
+    @patch("album_maestro.pipeline.downloader.download_audio")
     def test_runs_processing_stages_in_order(
         self,
         download_audio,
@@ -64,8 +64,8 @@ class PipelineTests(unittest.TestCase):
         add_chapters.assert_called_once()
         move.assert_called_once_with("chaptered.m4a", result)
 
-    @patch("yt_maestro.pipeline._create_track")
-    @patch("yt_maestro.pipeline.downloader.download_audio")
+    @patch("album_maestro.pipeline._create_track")
+    @patch("album_maestro.pipeline.downloader.download_audio")
     def test_downloads_a_shared_source_once(self, download_audio, create_track):
         source = Path("source.m4a")
         download_audio.return_value = source
@@ -77,7 +77,7 @@ class PipelineTests(unittest.TestCase):
 
         with (
             tempfile.TemporaryDirectory() as output_dir,
-            self.assertLogs("yt_maestro.pipeline", level="INFO") as logs,
+            self.assertLogs("album_maestro.pipeline", level="INFO") as logs,
         ):
             outputs = _download_tracks(tracks, output_dir)
 
@@ -92,8 +92,8 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(messages[2], "Creating track 1/2: First")
         self.assertEqual(messages[4], "Creating track 2/2: Second")
 
-    @patch("yt_maestro.pipeline._create_track")
-    @patch("yt_maestro.pipeline.downloader.download_audio")
+    @patch("album_maestro.pipeline._create_track")
+    @patch("album_maestro.pipeline.downloader.download_audio")
     def test_skips_an_existing_track_without_overwrite(
         self, download_audio, create_track
     ):
@@ -111,11 +111,11 @@ class PipelineTests(unittest.TestCase):
         create_track.assert_not_called()
 
     @patch(
-        "yt_maestro.pipeline.audio.add_metadata",
+        "album_maestro.pipeline.audio.add_metadata",
         side_effect=lambda source, output, metadata: source,
     )
-    @patch("yt_maestro.pipeline.audio.audio_duration_ms", return_value=10_000)
-    @patch("yt_maestro.pipeline.downloader.download_audio")
+    @patch("album_maestro.pipeline.audio.audio_duration_ms", return_value=10_000)
+    @patch("album_maestro.pipeline.downloader.download_audio")
     def test_overwrites_an_existing_track(
         self, download_audio, audio_duration_ms, add_metadata
     ):

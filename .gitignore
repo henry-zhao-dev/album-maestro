@@ -61,8 +61,8 @@ downloads/
 output/
 tmp/
 
-# yt-maestro temporary directories
-.yt-maestro-*/
+# album-maestro temporary directories
+.album-maestro-*/
 
 # Audio files
 *.aac

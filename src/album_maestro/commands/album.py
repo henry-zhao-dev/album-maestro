@@ -4,17 +4,17 @@ import argparse
 import logging
 from collections.abc import Sequence
 
-from yt_maestro import pipeline, specs
-from yt_maestro.commands import prompts
-from yt_maestro.commands.base import Command
-from yt_maestro.library import Library, LibraryError
-from yt_maestro.models import Album, Artist
+from album_maestro import pipeline, specs
+from album_maestro.commands import prompts
+from album_maestro.commands.base import Command
+from album_maestro.library import Library, LibraryError
+from album_maestro.models import Album, Artist
 
 logger = logging.getLogger(__name__)
 
 
 class CreateCommand(Command):
-    """Implement the nested ``yt-maestro album create`` operation."""
+    """Implement the nested ``album-maestro album create`` operation."""
 
     name = "create"
     help = "Create a new album declaration."
@@ -141,7 +141,7 @@ class CreateCommand(Command):
 
 
 class DownloadCommand(Command):
-    """Implement the nested ``yt-maestro album download`` operation."""
+    """Implement the nested ``album-maestro album download`` operation."""
 
     name = "download"
     help = "Download every track in one or more albums."
@@ -251,7 +251,7 @@ class DownloadCommand(Command):
 
 
 class AlbumCommand(Command):
-    """Route ``yt-maestro album`` to the selected album operation."""
+    """Route ``album-maestro album`` to the selected album operation."""
 
     name = "album"
     help = "Work with albums in a music library."

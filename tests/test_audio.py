@@ -2,23 +2,23 @@ import subprocess
 import unittest
 from unittest.mock import patch
 
-from yt_maestro import audio
-from yt_maestro.models import Chapter
+from album_maestro import audio
+from album_maestro.models import Chapter
 
 
 class DurationTests(unittest.TestCase):
-    @patch("yt_maestro.audio.subprocess.check_output", return_value="12.3456\n")
+    @patch("album_maestro.audio.subprocess.check_output", return_value="12.3456\n")
     def test_duration_is_reported_in_milliseconds(self, check_output):
         self.assertEqual(audio.audio_duration_ms("recording.m4a"), 12_345)
         self.assertEqual(check_output.call_args.args[0][0], "ffprobe")
 
-    @patch("yt_maestro.audio.subprocess.check_output", return_value="nan")
+    @patch("album_maestro.audio.subprocess.check_output", return_value="nan")
     def test_invalid_duration_returns_zero(self, _check_output):
         self.assertEqual(audio.audio_duration_ms("recording.m4a"), 0)
 
 
 class CommandFailureTests(unittest.TestCase):
-    @patch("yt_maestro.audio.subprocess.check_output")
+    @patch("album_maestro.audio.subprocess.check_output")
     def test_metadata_failure_raises_audio_error(self, check_output):
         check_output.side_effect = subprocess.CalledProcessError(1, "ffmpeg", "bad")
         with self.assertRaisesRegex(audio.AudioError, "ffmpeg failed"):
@@ -26,7 +26,7 @@ class CommandFailureTests(unittest.TestCase):
 
 
 class TrimTests(unittest.TestCase):
-    @patch("yt_maestro.audio.subprocess.check_output", return_value="")
+    @patch("album_maestro.audio.subprocess.check_output", return_value="")
     def test_trim_uses_the_requested_duration(self, check_output):
         result = audio.trim_audio("input.m4a", "output.m4a", 5_000, 20_000)
 

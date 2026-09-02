@@ -3,10 +3,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from yt_maestro.models import Artist
-from yt_maestro.specs import SpecError, load_album
-from yt_maestro.specs.parsing import _parse_timestamp
-from yt_maestro.specs.catalog import _parse_album, _parse_artist
+from album_maestro.models import Artist
+from album_maestro.specs import SpecError, load_album
+from album_maestro.specs.parsing import _parse_timestamp
+from album_maestro.specs.catalog import _parse_album, _parse_artist
 
 
 class AlbumTests(unittest.TestCase):

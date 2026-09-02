@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from yt_maestro.specs.errors import SpecError
+from album_maestro.specs.errors import SpecError
 
 
 def load_json(path: str | Path, *, label: str) -> Any:

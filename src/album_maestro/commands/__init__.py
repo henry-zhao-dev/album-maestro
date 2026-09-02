@@ -1,8 +1,8 @@
-"""Registry of commands available directly beneath ``yt-maestro``."""
+"""Registry of commands available directly beneath ``album-maestro``."""
 
-from yt_maestro.commands.album import AlbumCommand
-from yt_maestro.commands.base import Command
-from yt_maestro.commands.initialize import InitCommand
+from album_maestro.commands.album import AlbumCommand
+from album_maestro.commands.base import Command
+from album_maestro.commands.initialize import InitCommand
 
 _registered_commands = (
     InitCommand(),

@@ -5,8 +5,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
-from yt_maestro import specs
-from yt_maestro.models import Album, Artist
+from album_maestro import specs
+from album_maestro.models import Album, Artist
 
 
 class LibraryError(ValueError):
@@ -59,7 +59,7 @@ class Library:
     def manifest(self) -> Path:
         """Return the library manifest path."""
 
-        return self.root / "yt-maestro.json"
+        return self.root / "album-maestro.json"
 
     def album_references(self) -> list[str]:
         """Return every album reference in filename order."""
@@ -216,7 +216,7 @@ class Library:
         """Load a library from its manifest."""
 
         resolved_root = Path(root).expanduser().resolve()
-        manifest = resolved_root / "yt-maestro.json"
+        manifest = resolved_root / "album-maestro.json"
 
         try:
             data = specs.load_json(manifest, label="library manifest")
@@ -224,7 +224,7 @@ class Library:
             raise LibraryError(str(error)) from error
 
         if not isinstance(data, Mapping) or data.get("kind") != "library":
-            raise LibraryError("yt-maestro.json is not a library manifest")
+            raise LibraryError("album-maestro.json is not a library manifest")
 
         music_library = cls(
             root=resolved_root,

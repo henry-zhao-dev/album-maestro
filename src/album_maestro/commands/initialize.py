@@ -1,11 +1,11 @@
-"""Implementation of the ``yt-maestro init`` command."""
+"""Implementation of the ``album-maestro init`` command."""
 
 import argparse
 import logging
 from pathlib import Path
 
-from yt_maestro.commands.base import Command
-from yt_maestro.library import Library, LibraryError
+from album_maestro.commands.base import Command
+from album_maestro.library import Library, LibraryError
 
 logger = logging.getLogger(__name__)
 
@@ -41,5 +41,5 @@ class InitCommand(Command):
             logger.error("Cannot initialize library: %s", error)
             return 1
 
-        print(f"Created yt-maestro library at {manifest.parent}")
+        print(f"Created Album Maestro library at {manifest.parent}")
         return 0
