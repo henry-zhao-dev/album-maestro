@@ -1,4 +1,4 @@
-"""Load and apply the JSON Schemas shipped with yt-maestro."""
+"""Validate catalog data against the JSON Schemas shipped with yt-maestro."""
 
 import json
 from collections.abc import Mapping
@@ -8,19 +8,28 @@ from typing import Any, cast
 
 from jsonschema import Draft202012Validator
 
-from yt_maestro.specs._parsing import SpecError
+from yt_maestro.specs.errors import SpecError
 
 
-def validate_object(data: Any, schema_name: str, *, label: str) -> Mapping[str, Any]:
-    """Validate a decoded catalog object and return it with a narrowed type."""
+def validate_album(data: Any) -> Mapping[str, Any]:
+    """Validate and return one decoded album specification."""
 
-    error = min(
-        _validator(schema_name).iter_errors(data),
-        key=lambda err: tuple(map(str, err.absolute_path)),
-        default=None,
-    )
-    if error is not None:
-        location = _format_location(label, error.absolute_path)
+    return _validate_object(data, "album")
+
+
+def validate_artist(data: Any) -> Mapping[str, Any]:
+    """Validate and return one decoded artist specification."""
+
+    return _validate_object(data, "artist")
+
+
+def _validate_object(data: Any, schema_name: str) -> Mapping[str, Any]:
+    """Validate one decoded catalog object against a named schema."""
+
+    errors = list(_validator(schema_name).iter_errors(data))
+    if errors:
+        error = min(errors, key=lambda err: tuple(map(str, err.absolute_path)))
+        location = _format_location(schema_name, error.absolute_path)
         raise SpecError(f"{location}: {error.message}")
     return cast(Mapping[str, Any], data)
 

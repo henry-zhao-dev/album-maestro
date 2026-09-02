@@ -99,9 +99,7 @@ class PipelineTests(unittest.TestCase):
     ):
         with tempfile.TemporaryDirectory() as output_dir:
             track = _track_request()
-            existing = (
-                Path(output_dir).resolve() / "Artist" / "Album" / "Track.m4a"
-            )
+            existing = Path(output_dir).resolve() / "Artist" / "Album" / "Track.m4a"
             existing.parent.mkdir(parents=True)
             existing.write_text("existing", encoding="utf-8")
 

@@ -8,9 +8,136 @@ from yt_maestro import pipeline, specs
 from yt_maestro.commands import prompts
 from yt_maestro.commands.base import Command
 from yt_maestro.library import Library, LibraryError
-from yt_maestro.models import Album
+from yt_maestro.models import Album, Artist
 
 logger = logging.getLogger(__name__)
+
+
+class CreateCommand(Command):
+    """Implement the nested ``yt-maestro album create`` operation."""
+
+    name = "create"
+    help = "Create a new album declaration."
+
+    def configure(self, parser: argparse.ArgumentParser) -> None:
+        """Add arguments for creating an album."""
+
+        parser.add_argument(
+            "--library",
+            default=".",
+            metavar="DIRECTORY",
+            help="Library directory (default: current directory)",
+        )
+
+    def run(self, args: argparse.Namespace) -> int:
+        """Create an album declaration from interactive prompts."""
+
+        try:
+            music_library = Library.load(args.library)
+        except LibraryError as error:
+            logger.error("Cannot load library: %s", error)
+            return 1
+
+        title = prompts.text("Album title")
+        if not title:
+            logger.error("Album title must not be empty")
+            return 1
+
+        try:
+            reference = specs.reference_from_text(title, label="album title")
+        except ValueError as error:
+            logger.error("Cannot create album: %s", error)
+            return 1
+
+        album_path = music_library.albums_dir / f"{reference}.json"
+        if album_path.exists():
+            logger.error("Album already exists: %s", album_path)
+            return 1
+
+        artist_name = prompts.text("Album artist")
+        try:
+            artist_match = self._select_artist(music_library, artist_name)
+            if artist_match is None:
+                artist_reference = specs.reference_from_text(
+                    artist_name, label="artist name"
+                )
+                artist = None
+                artist_path = music_library.artists_dir / f"{artist_reference}.json"
+                if artist_path.exists():
+                    raise LibraryError(
+                        f"artist reference already exists: {artist_reference}"
+                    )
+            else:
+                artist_reference, artist = artist_match
+        except (LibraryError, ValueError) as error:
+            logger.error("Cannot create album: %s", error)
+            return 1
+
+        default_genre = artist.default_genre if artist is not None else None
+        genre = prompts.text("Album genre (optional)", default=default_genre)
+
+        if artist is None:
+            try:
+                artist_reference = music_library.create_artist(artist_name, genre)
+            except LibraryError as error:
+                logger.error("Cannot create artist: %s", error)
+                return 1
+        elif (
+            genre
+            and genre != default_genre
+            and prompts.confirm(
+                f"Set {genre!r} as the default genre for {artist.name}?",
+                default=False,
+            )
+        ):
+            try:
+                music_library.update_artist_default_genre(artist_reference, genre)
+            except LibraryError as error:
+                logger.error("Cannot update artist: %s", error)
+                return 1
+
+        shared_url = prompts.text("Album shared URL (optional)")
+
+        try:
+            album_path = music_library.create_album(
+                title,
+                artist_reference,
+                genre=genre,
+                shared_url=shared_url,
+            )
+        except LibraryError as error:
+            logger.error("Cannot create album: %s", error)
+            return 1
+
+        print(f"\nAlbum created at {album_path.relative_to(music_library.root)}")
+        print("You can edit JSON to create tracks.")
+        return 0
+
+    @staticmethod
+    def _select_artist(music_library: Library, name: str) -> tuple[str, Artist] | None:
+        """Select one artist, prompting when the name is ambiguous.
+
+        Return the selected catalog reference and artist, or ``None`` when no
+        display name contains ``name``.
+        """
+
+        matches = music_library.artist_matches(name)
+        if not matches:
+            return None
+        if len(matches) == 1:
+            return matches[0]
+
+        print("Multiple matching artists found:")
+        for index, (_, artist) in enumerate(matches, start=1):
+            print(f"  {index}. {artist.name}")
+
+        artist_number = prompts.bounded_number(
+            "Select an artist",
+            minimum=1,
+            maximum=len(matches),
+        )
+        print()
+        return matches[artist_number - 1]
 
 
 class DownloadCommand(Command):
@@ -101,9 +228,7 @@ class DownloadCommand(Command):
             for path in sorted(existing):
                 logger.warning("Existing track: %s", path)
             if not overwrite:
-                overwrite = prompts.confirm(
-                    "Overwrite existing tracks?", default=False
-                )
+                overwrite = prompts.confirm("Overwrite existing tracks?", default=False)
 
         for index, (reference, album) in enumerate(albums, start=1):
             logger.info("Downloading album %s of %s: %s", index, len(albums), reference)
@@ -132,7 +257,9 @@ class AlbumCommand(Command):
     help = "Work with albums in a music library."
 
     # Album operations stay internal rather than entering the top-level registry.
-    operations = {command.name: command for command in (DownloadCommand(),)}
+    operations = {
+        command.name: command for command in (CreateCommand(), DownloadCommand())
+    }
 
     def configure(self, parser: argparse.ArgumentParser) -> None:
         """Add the available album operations."""

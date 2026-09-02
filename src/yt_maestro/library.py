@@ -66,6 +66,11 @@ class Library:
 
         return [path.stem for path in sorted(self.albums_dir.glob("*.json"))]
 
+    def artist_references(self) -> list[str]:
+        """Return every artist reference in filename order."""
+
+        return [path.stem for path in sorted(self.artists_dir.glob("*.json"))]
+
     def load_album(self, reference: str) -> Album:
         """Load an album and resolve its artist references."""
 
@@ -77,6 +82,109 @@ class Library:
 
         filename = _catalog_filename(reference, label="artist")
         return specs.load_artist(self.artists_dir / filename)
+
+    def create_artist(self, name: str, default_genre: str | None = None) -> str:
+        """Create an artist declaration and return its canonical reference.
+
+        Blank optional genres are omitted from the declaration.
+        """
+
+        name = name.strip()
+        try:
+            reference = specs.reference_from_text(name, label="artist name")
+        except ValueError as error:
+            raise LibraryError(str(error)) from error
+
+        artist_path = self.artists_dir / f"{reference}.json"
+        if artist_path.exists():
+            raise LibraryError(f"artist reference already exists: {reference}")
+
+        artist_data: dict[str, object] = {"name": name}
+        genre = _optional_text(default_genre)
+        if genre:
+            artist_data["default_genre"] = genre
+        try:
+            specs.write_json(artist_path, artist_data)
+        except specs.SpecError as error:
+            raise LibraryError(str(error)) from error
+        return reference
+
+    def update_artist_default_genre(self, reference: str, genre: str) -> None:
+        """Set the default genre on an existing artist declaration."""
+
+        genre = genre.strip()
+        if not genre:
+            raise LibraryError("artist default genre must not be empty")
+
+        try:
+            filename = _catalog_filename(reference, label="artist")
+            specs.set_json_fields(
+                self.artists_dir / filename,
+                {"default_genre": genre},
+                label="artist",
+            )
+        except specs.SpecError as error:
+            raise LibraryError(str(error)) from error
+
+    def create_album(
+        self,
+        title: str,
+        artist_reference: str,
+        *,
+        genre: str | None = None,
+        shared_url: str | None = None,
+    ) -> Path:
+        """Create an empty album declaration and return its path.
+
+        A genre matching the artist's default is omitted as redundant. Blank
+        optional values are omitted from the declaration.
+        """
+
+        title = title.strip()
+        try:
+            reference = specs.reference_from_text(title, label="album title")
+            artist_filename = _catalog_filename(artist_reference, label="artist")
+            artist = specs.load_artist(self.artists_dir / artist_filename)
+        except ValueError as error:
+            raise LibraryError(str(error)) from error
+
+        album_path = self.albums_dir / f"{reference}.json"
+        if album_path.exists():
+            raise LibraryError(f"album already exists: {album_path}")
+
+        album_data: dict[str, object] = {
+            "title": title,
+            "artist": artist_filename.removesuffix(".json"),
+        }
+        genre = _optional_text(genre)
+        if genre and genre != artist.default_genre:
+            album_data["genre"] = genre
+        shared_url = _optional_text(shared_url)
+        if shared_url:
+            album_data["url"] = shared_url
+        album_data["tracks"] = []
+
+        try:
+            specs.write_json(album_path, album_data)
+        except specs.SpecError as error:
+            raise LibraryError(str(error)) from error
+        return album_path
+
+    def artist_matches(self, name: str) -> list[tuple[str, Artist]]:
+        """Return case-insensitive substring matches as reference/artist pairs."""
+
+        name = name.strip()
+        if not name:
+            raise LibraryError("artist name must not be empty")
+
+        query = name.casefold()
+        matches: list[tuple[str, Artist]] = []
+        for reference in self.artist_references():
+            artist = self.load_artist(reference)
+            if query in artist.name.casefold():
+                matches.append((reference, artist))
+
+        return matches
 
     def initialize(self) -> Path:
         """Create the library directories and manifest."""
@@ -136,3 +244,9 @@ def _catalog_filename(reference: str, *, label: str) -> str:
     reference_without_ext = reference.removesuffix(".json")
     canonical_reference = specs.catalog_reference(reference_without_ext, label=label)
     return f"{canonical_reference}.json"
+
+
+def _optional_text(value: str | None) -> str | None:
+    """Normalize an optional text value to ``None`` when blank."""
+
+    return value.strip() if value and value.strip() else None
