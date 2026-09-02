@@ -1,11 +1,53 @@
 # Album Maestro
 
-Album Maestro is a declarative YouTube audio downloader for classical music. You
-describe artists and albums as JSON, then Album Maestro downloads, trims, tags,
-and organizes the resulting audio files.
+Album Maestro is a Python CLI that turns declarative JSON music catalogs into
+organized audio libraries. It resolves reusable artist and album metadata,
+downloads configured sources, splits long recordings into tracks, embeds tags
+and chapters, and writes the results into a predictable directory structure.
 
-This is an early CLI release. Album tracks are currently authored by editing
-JSON directly; a guided editor and GUI are planned for a later release.
+The code keeps catalog rules, library operations, CLI interaction,
+downloading, and audio processing separate so each area can evolve without
+forcing changes elsewhere. Besides making the current behavior easier to
+test, this gives future interfaces, such as a GUI, a way to reuse the same
+core logic.
+
+## Engineering highlights
+
+- JSON Schema validation with readable, location-aware configuration errors
+- Reusable artist references and inherited album metadata
+- Shared-source processing that downloads a recording once and creates
+  multiple trimmed tracks from it
+- Metadata and chapter embedding through FFmpeg and ffprobe subprocesses
+- Interactive CLI workflows with explicit overwrite and partial-failure
+  handling
+- Automated tests across the CLI, specifications, library operations,
+  downloader behavior, prompts, and audio pipeline
+
+## Architecture
+
+| Area | Responsibility |
+| --- | --- |
+| [`commands/`](src/album_maestro/commands/) | CLI argument handling, prompts, and user-facing output |
+| [`specs/`](src/album_maestro/specs/) | JSON loading, parsing, schema validation, and catalog storage |
+| [`library.py`](src/album_maestro/library.py) | Library-level operations shared independently of the CLI |
+| [`models.py`](src/album_maestro/models.py) | Resolved artist, album, track, and chapter models |
+| [`downloader.py`](src/album_maestro/downloader.py) | Source acquisition through the yt-dlp Python API |
+| [`audio.py`](src/album_maestro/audio.py) | Audio inspection and editing through FFmpeg and ffprobe |
+| [`pipeline.py`](src/album_maestro/pipeline.py) | Album download and track-creation orchestration |
+
+## Project status and responsible use
+
+Album Maestro is an early-stage CLI rather than a production service. Album
+tracks are currently authored by editing JSON; a guided editor and GUI are
+possible future work. The project is not affiliated with or endorsed by
+YouTube, yt-dlp, or FFmpeg.
+
+This repository does not include downloaded media and its example URLs are
+placeholders. Album Maestro does not grant rights to third-party content or
+override the terms of any platform. Only download or process media when you
+have permission and when doing so complies with applicable laws, content
+licenses, and platform terms. You are responsible for the URLs and media you
+provide.
 
 ## Requirements
 
@@ -241,10 +283,10 @@ album-maestro album download beethoven-symphony-no-5 classical-favorites \
 album-maestro album download --all --library ~/Music/album-maestro
 ```
 
-Without `--overwrite`, existing track files are listed and Album Maestro asks once
-whether to overwrite them. Answering no skips existing tracks and continues
-with tracks that are not present. Pass `--overwrite` to overwrite existing
-tracks without prompting.
+Without `--overwrite`, existing track files are listed and Album Maestro asks
+once whether to overwrite them. Answering no skips existing tracks and
+continues with tracks that are not present. Pass `--overwrite` to overwrite
+existing tracks without prompting.
 
 Generated files are organized as:
 
@@ -266,7 +308,7 @@ ffprobe -version
 ### Album validation errors
 
 Check the filename references and JSON fields against the examples and schemas
-in [`src/yt_maestro/schemas/`](src/yt_maestro/schemas/). The most common issue
+in [`src/album_maestro/schemas/`](src/album_maestro/schemas/). The most common issue
 is forgetting to add a `tracks` entry or a track `url` when no album-level URL
 is present.
 
@@ -281,6 +323,19 @@ want to replace existing output files.
 - There is not yet a dedicated `album validate`, `list`, or `show` command.
 - Downloads depend on the current behavior and availability of YouTube and
   `yt-dlp`.
+
+## Third-party software
+
+Album Maestro uses [yt-dlp](https://github.com/yt-dlp/yt-dlp), which is licensed
+under the [Unlicense](https://github.com/yt-dlp/yt-dlp/blob/master/LICENSE),
+and [jsonschema](https://github.com/python-jsonschema/jsonschema), which is
+licensed under the
+[MIT License](https://github.com/python-jsonschema/jsonschema/blob/main/COPYING).
+
+FFmpeg and ffprobe are external system requirements and are not distributed
+with Album Maestro. FFmpeg is generally licensed under LGPL-2.1-or-later, while
+the license of a particular build may differ based on its enabled components;
+see [FFmpeg's legal information](https://ffmpeg.org/legal.html).
 
 ## Development
 
