@@ -1,0 +1,16 @@
+{
+  "title": "Classical Favorites",
+  "artist": "various-artists",
+  "tracks": [
+    {
+      "title": "Symphony No. 5",
+      "artist": "beethoven",
+      "url": "https://youtu.be/replace-with-beethoven-recording"
+    },
+    {
+      "title": "Eine kleine Nachtmusik",
+      "artist": "mozart",
+      "url": "https://youtu.be/replace-with-mozart-recording"
+    }
+  ]
+}

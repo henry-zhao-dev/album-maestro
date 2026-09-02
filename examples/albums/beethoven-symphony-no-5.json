@@ -1,0 +1,17 @@
+{
+  "title": "Symphony No. 5",
+  "artist": "beethoven",
+  "url": "https://youtu.be/replace-with-full-recording",
+  "tracks": [
+    {
+      "title": "I. Allegro con brio",
+      "start": "0:04",
+      "end": "8:20"
+    },
+    {
+      "title": "II. Andante con moto",
+      "start": "8:30",
+      "end": "19:15"
+    }
+  ]
+}
