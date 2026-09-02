@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://yt-maestro.dev/schemas/artist.schema.json",
-  "title": "YT Maestro artist",
+  "$id": "urn:album-maestro:schema:artist",
+  "title": "Album Maestro artist",
   "type": "object",
   "additionalProperties": false,
   "required": ["name"],

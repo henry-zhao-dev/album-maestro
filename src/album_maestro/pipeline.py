@@ -8,8 +8,8 @@ from collections import Counter
 from collections.abc import Sequence
 from pathlib import Path
 
-from yt_maestro import audio, downloader
-from yt_maestro.models import Album, Chapter, TrackRequest
+from album_maestro import audio, downloader
+from album_maestro.models import Album, Chapter, TrackRequest
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +70,7 @@ def _download_tracks(
     source_counts = Counter(track.url for track in tracks)
     source_numbers = {url: index for index, url in enumerate(source_counts, start=1)}
 
-    with tempfile.TemporaryDirectory(prefix=".yt-maestro-", dir=destination) as temp:
+    with tempfile.TemporaryDirectory(prefix=".album-maestro-", dir=destination) as temp:
         temp_dir = Path(temp)
 
         for index, track in enumerate(tracks, start=1):

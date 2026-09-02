@@ -1,7 +1,7 @@
 [project]
-name = "yt-maestro"
+name = "album-maestro"
 version = "0.1.0"
-description = "Declarative YouTube music processor tailored for classical music recordings"
+description = "Build organized music libraries from declarative JSON catalogs"
 authors = [
     {name = "Henry Zhao",email = "75873192+henry-zhao-dev@users.noreply.github.com"}
 ]
@@ -13,7 +13,7 @@ dependencies = [
 ]
 
 [project.scripts]
-yt-maestro = "yt_maestro.cli:main"
+album-maestro = "album_maestro.cli:main"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

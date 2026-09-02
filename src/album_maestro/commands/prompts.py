@@ -1,4 +1,4 @@
-"""Reusable interactive prompts for yt-maestro commands."""
+"""Reusable interactive prompts for album-maestro commands."""
 
 
 def text(label: str, default: str | None = None) -> str:

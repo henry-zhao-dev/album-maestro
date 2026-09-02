@@ -5,11 +5,11 @@ from unittest.mock import patch
 
 from yt_dlp.utils import DownloadError
 
-from yt_maestro import downloader
+from album_maestro import downloader
 
 
 class DownloadTests(unittest.TestCase):
-    @patch("yt_maestro.downloader.yt_dlp.YoutubeDL")
+    @patch("album_maestro.downloader.yt_dlp.YoutubeDL")
     def test_returns_post_processed_path(self, youtube_dl):
         client = youtube_dl.return_value.__enter__.return_value
 
@@ -28,7 +28,7 @@ class DownloadTests(unittest.TestCase):
         self.assertEqual(postprocessor["preferredquality"], "192")
         self.assertNotIn("postprocessor_args", options)
 
-    @patch("yt_maestro.downloader.yt_dlp.YoutubeDL")
+    @patch("album_maestro.downloader.yt_dlp.YoutubeDL")
     def test_download_error_is_exposed_to_the_pipeline(self, youtube_dl):
         client = youtube_dl.return_value.__enter__.return_value
         client.extract_info.side_effect = DownloadError("unavailable")

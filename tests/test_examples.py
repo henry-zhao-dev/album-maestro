@@ -1,7 +1,7 @@
 import unittest
 from pathlib import Path
 
-from yt_maestro import specs
+from album_maestro import specs
 
 
 class ExampleConfigurationTests(unittest.TestCase):

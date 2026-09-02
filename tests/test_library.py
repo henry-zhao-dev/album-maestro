@@ -3,8 +3,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from yt_maestro.library import Library, LibraryError
-from yt_maestro.specs import SpecError
+from album_maestro.library import Library, LibraryError
+from album_maestro.specs import SpecError
 
 
 class InitializeLibraryTests(unittest.TestCase):
@@ -15,7 +15,7 @@ class InitializeLibraryTests(unittest.TestCase):
             music_library = Library(root=root, name="My Music")
             manifest = music_library.initialize()
 
-            self.assertEqual(manifest, root.resolve() / "yt-maestro.json")
+            self.assertEqual(manifest, root.resolve() / "album-maestro.json")
             self.assertEqual(
                 json.loads(manifest.read_text(encoding="utf-8")),
                 {
@@ -30,7 +30,7 @@ class InitializeLibraryTests(unittest.TestCase):
     def test_refuses_to_replace_existing_manifest(self):
         with tempfile.TemporaryDirectory() as temporary_dir:
             root = Path(temporary_dir)
-            manifest = root / "yt-maestro.json"
+            manifest = root / "album-maestro.json"
             manifest.write_text("existing", encoding="utf-8")
 
             with self.assertRaisesRegex(LibraryError, "already exists"):
@@ -43,7 +43,7 @@ class LoadLibraryTests(unittest.TestCase):
     def test_loads_fixed_paths_and_ignores_schema_version(self):
         with tempfile.TemporaryDirectory() as temporary_dir:
             root = Path(temporary_dir)
-            (root / "yt-maestro.json").write_text(
+            (root / "album-maestro.json").write_text(
                 json.dumps(
                     {
                         "schema_version": 1,
@@ -66,7 +66,7 @@ class LoadLibraryTests(unittest.TestCase):
     def test_rejects_incomplete_library_structure(self):
         with tempfile.TemporaryDirectory() as temporary_dir:
             root = Path(temporary_dir)
-            (root / "yt-maestro.json").write_text(
+            (root / "album-maestro.json").write_text(
                 json.dumps({"kind": "library", "name": "Music"}),
                 encoding="utf-8",
             )

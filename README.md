@@ -1,7 +1,7 @@
-# YT Maestro
+# Album Maestro
 
-YT Maestro is a declarative YouTube audio downloader for classical music. You
-describe artists and albums as JSON, then YT Maestro downloads, trims, tags,
+Album Maestro is a declarative YouTube audio downloader for classical music. You
+describe artists and albums as JSON, then Album Maestro downloads, trims, tags,
 and organizes the resulting audio files.
 
 This is an early CLI release. Album tracks are currently authored by editing
@@ -13,7 +13,7 @@ JSON directly; a guided editor and GUI are planned for a later release.
 - [FFmpeg](https://ffmpeg.org/), including `ffmpeg` and `ffprobe` on `PATH`
 - Network access to the YouTube URLs in your album files
 
-YT Maestro uses `yt-dlp` for downloads and FFmpeg for audio inspection,
+Album Maestro uses `yt-dlp` for downloads and FFmpeg for audio inspection,
 trimming, metadata, and chapter tags. If either `ffmpeg` or `ffprobe` is not
 available, downloads that need audio processing will fail with an explanatory
 error.
@@ -30,8 +30,8 @@ brew install ffmpeg
 From a source checkout, install the project with Poetry:
 
 ```shell
-git clone https://github.com/henry-zhao-dev/yt-maestro.git
-cd yt-maestro
+git clone https://github.com/henry-zhao-dev/album-maestro.git
+cd album-maestro
 poetry install
 ```
 
@@ -44,10 +44,10 @@ python -m pip install .
 Verify the installation:
 
 ```shell
-poetry run yt-maestro --help
+poetry run album-maestro --help
 ```
 
-If you installed with pip, use `yt-maestro` directly. If you installed with
+If you installed with pip, use `album-maestro` directly. If you installed with
 Poetry, prefix commands with `poetry run` unless the Poetry environment is
 activated.
 
@@ -56,21 +56,21 @@ activated.
 Create a library in a directory of your choice:
 
 ```shell
-yt-maestro init ~/Music/yt-maestro
+album-maestro init ~/Music/album-maestro
 ```
 
 The library name defaults to the directory name. Set it explicitly with
 `--name` when needed:
 
 ```shell
-yt-maestro init ~/Music/yt-maestro --name "My Classical Music"
+album-maestro init ~/Music/album-maestro --name "My Music Library"
 ```
 
 The command creates this layout:
 
 ```text
-~/Music/yt-maestro/
-├── yt-maestro.json
+~/Music/album-maestro/
+├── album-maestro.json
 ├── albums/
 ├── artists/
 └── downloads/
@@ -79,7 +79,7 @@ The command creates this layout:
 Create an album draft interactively:
 
 ```shell
-yt-maestro album create --library ~/Music/yt-maestro
+album-maestro album create --library ~/Music/album-maestro
 ```
 
 The command asks for the title, artist, optional genre, and optional shared
@@ -95,17 +95,17 @@ YouTube URLs before downloading.
 To use the examples:
 
 ```shell
-yt-maestro init ~/Music/yt-maestro-example
-cp examples/artists/*.json ~/Music/yt-maestro-example/artists/
-cp examples/albums/*.json ~/Music/yt-maestro-example/albums/
+album-maestro init ~/Music/album-maestro-example
+cp examples/artists/*.json ~/Music/album-maestro-example/artists/
+cp examples/albums/*.json ~/Music/album-maestro-example/albums/
 ```
 
 After replacing the placeholder URLs, download one album or the entire library:
 
 ```shell
-yt-maestro album download beethoven-symphony-no-5 \
-  --library ~/Music/yt-maestro-example
-yt-maestro album download --all --library ~/Music/yt-maestro-example
+album-maestro album download beethoven-symphony-no-5 \
+  --library ~/Music/album-maestro-example
+album-maestro album download --all --library ~/Music/album-maestro-example
 ```
 
 ## Artist files
@@ -128,7 +128,7 @@ The reference is a stable configuration ID, while `name` is the display value
 written to audio metadata. `default_genre` is used when an album does not
 provide its own genre.
 
-When creating an album, YT Maestro matches the entered artist name against
+When creating an album, Album Maestro matches the entered artist name against
 existing display names without regard to case. If several artists match, it
 lists them and asks you to select one. If no artist matches, it creates a new
 artist file using the entered name. A genre entered for a new artist becomes
@@ -228,20 +228,20 @@ edited before it can be downloaded.
 Download one album by its reference (the album filename without `.json`):
 
 ```shell
-yt-maestro album download beethoven-symphony-no-5 \
-  --library ~/Music/yt-maestro
+album-maestro album download beethoven-symphony-no-5 \
+  --library ~/Music/album-maestro
 ```
 
 Download several albums by passing multiple references, or download every album
 with `--all`:
 
 ```shell
-yt-maestro album download beethoven-symphony-no-5 classical-favorites \
-  --library ~/Music/yt-maestro
-yt-maestro album download --all --library ~/Music/yt-maestro
+album-maestro album download beethoven-symphony-no-5 classical-favorites \
+  --library ~/Music/album-maestro
+album-maestro album download --all --library ~/Music/album-maestro
 ```
 
-Without `--overwrite`, existing track files are listed and YT Maestro asks once
+Without `--overwrite`, existing track files are listed and Album Maestro asks once
 whether to overwrite them. Answering no skips existing tracks and continues
 with tracks that are not present. Pass `--overwrite` to overwrite existing
 tracks without prompting.

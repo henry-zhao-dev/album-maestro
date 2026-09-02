@@ -6,7 +6,7 @@ import tempfile
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 
-from yt_maestro.models import Chapter
+from album_maestro.models import Chapter
 
 
 class AudioError(RuntimeError):

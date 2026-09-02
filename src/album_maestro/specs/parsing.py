@@ -4,7 +4,7 @@ import math
 from collections.abc import Mapping
 from typing import Any
 
-from yt_maestro.specs.errors import SpecError
+from album_maestro.specs.errors import SpecError
 
 __all__ = [
     "optional_string",

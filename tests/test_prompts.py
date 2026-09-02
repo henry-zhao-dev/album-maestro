@@ -3,7 +3,7 @@ from contextlib import redirect_stdout
 from io import StringIO
 from unittest.mock import call, patch
 
-from yt_maestro.commands import prompts
+from album_maestro.commands import prompts
 
 
 class NumberPromptTests(unittest.TestCase):

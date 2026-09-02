@@ -5,7 +5,7 @@ import logging
 import sys
 from collections.abc import Sequence
 
-from yt_maestro.commands import COMMANDS
+from album_maestro.commands import COMMANDS
 
 LOG_FORMAT = "[%(levelname)s] %(message)s"
 
@@ -17,7 +17,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     arguments = list(argv) if argv is not None else sys.argv[1:]
     parser = argparse.ArgumentParser(
-        prog="yt-maestro", description="Manage a declarative music library."
+        prog="album-maestro", description="Manage a declarative music library."
     )
     commands = parser.add_subparsers(dest="command", metavar="COMMAND", required=True)
 

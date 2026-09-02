@@ -1,4 +1,4 @@
-"""Validate catalog data against the JSON Schemas shipped with yt-maestro."""
+"""Validate catalog data against the JSON Schemas shipped with album-maestro."""
 
 import json
 from collections.abc import Mapping
@@ -8,7 +8,7 @@ from typing import Any, cast
 
 from jsonschema import Draft202012Validator
 
-from yt_maestro.specs.errors import SpecError
+from album_maestro.specs.errors import SpecError
 
 
 def validate_album(data: Any) -> Mapping[str, Any]:
@@ -38,7 +38,7 @@ def _validate_object(data: Any, schema_name: str) -> Mapping[str, Any]:
 def _validator(schema_name: str) -> Draft202012Validator:
     """Load and compile a packaged schema once per process."""
 
-    resource = files("yt_maestro").joinpath("schemas", f"{schema_name}.schema.json")
+    resource = files("album_maestro").joinpath("schemas", f"{schema_name}.schema.json")
     schema = json.loads(resource.read_text(encoding="utf-8"))
     Draft202012Validator.check_schema(schema)
     return Draft202012Validator(schema)

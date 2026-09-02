@@ -1,19 +1,19 @@
 """Loading and validation for persistent artist and album specifications."""
 
-from yt_maestro.specs.errors import SpecError
-from yt_maestro.specs.parsing import (
+from album_maestro.specs.errors import SpecError
+from album_maestro.specs.parsing import (
     optional_string,
     optional_timestamp,
     required_string,
 )
-from yt_maestro.specs.catalog import (
+from album_maestro.specs.catalog import (
     catalog_reference,
     load_album,
     load_artist,
     reference_from_text,
 )
-from yt_maestro.specs.schema import validate_album, validate_artist
-from yt_maestro.specs.storage import load_json, set_json_fields, write_json
+from album_maestro.specs.schema import validate_album, validate_artist
+from album_maestro.specs.storage import load_json, set_json_fields, write_json
 
 __all__ = [
     "SpecError",
