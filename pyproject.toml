@@ -6,6 +6,7 @@ authors = [
     {name = "Henry Zhao",email = "75873192+henry-zhao-dev@users.noreply.github.com"}
 ]
 readme = "README.md"
+license = "MIT"
 requires-python = ">=3.11"
 dependencies = [
     "yt-dlp (>=2026.8.19,<2027.0.0)",

@@ -326,6 +326,8 @@ want to replace existing output files.
 
 ## Third-party software
 
+Album Maestro is licensed under the [MIT License](LICENSE).
+
 Album Maestro uses [yt-dlp](https://github.com/yt-dlp/yt-dlp), which is licensed
 under the [Unlicense](https://github.com/yt-dlp/yt-dlp/blob/master/LICENSE),
 and [jsonschema](https://github.com/python-jsonschema/jsonschema), which is
