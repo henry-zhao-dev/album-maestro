@@ -155,7 +155,6 @@ class Library:
         album_data: dict[str, object] = {
             "title": title,
             "artist": artist_filename.removesuffix(".json"),
-            "tracks": [],
         }
         genre = _optional_text(genre)
         if genre and genre != artist.default_genre:
@@ -163,6 +162,7 @@ class Library:
         shared_url = _optional_text(shared_url)
         if shared_url:
             album_data["url"] = shared_url
+        album_data["tracks"] = []
 
         try:
             specs.write_json(album_path, album_data)
