@@ -1,9 +1,16 @@
 # Album Maestro
 
-Album Maestro is a Python CLI that turns declarative JSON music catalogs into
-organized audio libraries. It resolves reusable artist and album metadata,
-downloads configured sources, splits long recordings into tracks, embeds tags
-and chapters, and writes the results into a predictable directory structure.
+Album Maestro is a Python CLI for turning long-form recordings into albums you
+can actually keep and play. Classical recordings are often available on
+YouTube as one long video rather than as a properly structured release. Album
+Maestro lets you describe the album, tracks, metadata, and chapter boundaries
+in reproducible JSON, then downloads and produces tagged audio files that work
+with established players such as Apple Music, VLC, and Windows Media Player.
+
+The goal is not to build another streaming service or music player. It is a
+free, open-source album authoring and processing tool: use any permitted media
+source, decide how it should become an album, and keep the resulting files and
+specification under your control.
 
 The code keeps catalog rules, library operations, CLI interaction,
 downloading, and audio processing separate so each area can evolve without
@@ -14,7 +21,7 @@ core logic.
 ## Engineering highlights
 
 - JSON Schema validation with readable, location-aware configuration errors
-- Reusable artist references and inherited album metadata
+- Self-contained album specifications with inherited defaults and overrides
 - Shared-source processing that downloads a recording once and creates
   multiple trimmed tracks from it
 - Metadata and chapter embedding through FFmpeg and ffprobe subprocesses
@@ -30,7 +37,7 @@ core logic.
 | [`commands/`](src/album_maestro/commands/) | CLI argument handling, prompts, and user-facing output |
 | [`specs/`](src/album_maestro/specs/) | JSON loading, parsing, schema validation, and catalog storage |
 | [`library.py`](src/album_maestro/library.py) | Library-level operations shared independently of the CLI |
-| [`models.py`](src/album_maestro/models.py) | Resolved artist, album, track, and chapter models |
+| [`models.py`](src/album_maestro/models.py) | Resolved album, track, and chapter models |
 | [`downloader.py`](src/album_maestro/downloader.py) | Source acquisition through the yt-dlp Python API |
 | [`audio.py`](src/album_maestro/audio.py) | Audio inspection and editing through FFmpeg and ffprobe |
 | [`pipeline.py`](src/album_maestro/pipeline.py) | Album download and track-creation orchestration |
@@ -114,7 +121,6 @@ The command creates this layout:
 ~/Music/album-maestro/
 ├── album-maestro.json
 ├── albums/
-├── artists/
 └── downloads/
 ```
 
@@ -124,13 +130,14 @@ Create an album draft interactively:
 album-maestro album create --library ~/Music/album-maestro
 ```
 
-The command asks for the title, artist, optional genre, and optional shared
-URL. It creates an album JSON file with an empty `tracks` array. Edit that file
-to add tracks before downloading.
+The command asks for the title, optional album artist, optional composer,
+genre, and optional shared URL. Leave the album artist blank for a compilation
+whose tracks have different artists. It creates an album JSON file with an
+empty `tracks` array. Edit that file to add tracks before downloading.
 
 ## Example configurations
 
-The [`examples/`](examples/) directory contains artist and album JSON templates.
+The [`examples/`](examples/) directory contains album JSON templates.
 The URLs in those files are placeholders and must be replaced with real
 YouTube URLs before downloading.
 
@@ -138,7 +145,6 @@ To use the examples:
 
 ```shell
 album-maestro init ~/Music/album-maestro-example
-cp examples/artists/*.json ~/Music/album-maestro-example/artists/
 cp examples/albums/*.json ~/Music/album-maestro-example/albums/
 ```
 
@@ -150,41 +156,20 @@ album-maestro album download beethoven-symphony-no-5 \
 album-maestro album download --all --library ~/Music/album-maestro-example
 ```
 
-## Artist files
-
-An artist file defines reusable metadata. Its filename without `.json` is the
-canonical artist reference used by album files:
-
-```text
-artists/beethoven.json
-```
-
-```json
-{
-  "name": "Ludwig van Beethoven",
-  "default_genre": "Classical"
-}
-```
-
-The reference is a stable configuration ID, while `name` is the display value
-written to audio metadata. `default_genre` is used when an album does not
-provide its own genre.
-
-When creating an album, Album Maestro matches the entered artist name against
-existing display names without regard to case. If several artists match, it
-lists them and asks you to select one. If no artist matches, it creates a new
-artist file using the entered name. A genre entered for a new artist becomes
-that artist's default genre.
-
 ## Album files
 
-An album file requires `title`, `artist`, and at least one track. The album
-artist must reference an existing file in `artists/`:
+An album file requires `title`, `genre`, and at least one track. Album metadata
+is plain text and self-contained; there are no artist or composer catalog files
+to keep synchronized. The album-level `artist` is optional and is the default
+artist for its tracks. Use `null` for a compilation whose tracks provide their
+own artists. `composer` is an optional plain-text credit:
 
 ```json
 {
   "title": "Symphony No. 5",
-  "artist": "beethoven",
+  "artist": "Ludwig van Beethoven",
+  "composer": "Ludwig van Beethoven",
+  "genre": "Classical",
   "tracks": [
     {
       "title": "I. Allegro con brio",
@@ -194,9 +179,49 @@ artist must reference an existing file in `artists/`:
 }
 ```
 
-For an existing artist, the album genre prompt is prefilled with that artist's
-default. The album stores a `genre` only when it differs from the artist's
-default; this keeps repeated metadata in the artist file.
+### Artist, album artist, and composer
+
+Album Maestro maps these fields to standard audio metadata:
+
+- Album `artist` is the default track artist and becomes the output
+  `album_artist` tag.
+- Track `artist` overrides the album default. If neither is provided, both
+  output artist fields use `Various Artists`.
+- Album `composer` is an independent optional credit for who wrote the music.
+  Track `composer` overrides it. Composer never fills in for a missing artist.
+- Album `genre` is explicit and required. Track `genre` overrides it. Genre is
+  never inferred from an artist or composer.
+- Album `url` is the default source URL. Track `url` overrides it. Without an
+  album URL, every track must provide its own URL.
+
+This keeps the common classical cases clear. A recording performed by Hilary
+Hahn can have `artist: Hilary Hahn` and `composer: Johann Sebastian Bach`,
+while a composer-focused collection can leave the album artist blank and let
+the output use `Various Artists`. For pop music, the same fields work in the
+usual way: the performer is the artist, the composer is optional, and the
+genre is explicit.
+
+For example, a composer-centric album can use:
+
+```json
+{
+  "title": "Bach: Cello Suites",
+  "artist": null,
+  "composer": "Johann Sebastian Bach",
+  "genre": "Classical",
+  "tracks": [
+    {
+      "title": "Suite No. 1: I. Prelude",
+      "url": "https://youtu.be/replace-with-recording"
+    }
+  ]
+}
+```
+
+This produces `artist = Various Artists`,
+`album_artist = Various Artists`, and
+`composer = Johann Sebastian Bach` in the audio file. The composer remains a
+separate credit instead of being treated as the performer.
 
 ### Shared source recording
 
@@ -206,7 +231,9 @@ and `end` are optional timestamps and accept seconds, `mm:ss`, or `hh:mm:ss`:
 ```json
 {
   "title": "Symphony No. 5",
-  "artist": "beethoven",
+  "artist": "Frankfurt Radio Symphony Orchestra",
+  "composer": "Ludwig van Beethoven",
+  "genre": "Classical",
   "url": "https://youtu.be/replace-with-full-recording",
   "tracks": [
     {
@@ -224,22 +251,23 @@ and `end` are optional timestamps and accept seconds, `mm:ss`, or `hh:mm:ss`:
 ```
 
 When an album does not have a shared URL, every track must provide its own
-`url`. A track may also provide an `artist` reference to override the album
-artist, which is useful for compilations:
+`url`. A track may provide an `artist` value to override the album artist.
+For a compilation, leave the album artist as `null`:
 
 ```json
 {
   "title": "Classical Favorites",
-  "artist": "various-artists",
+  "artist": null,
+  "genre": "Classical",
   "tracks": [
     {
       "title": "Symphony No. 5",
-      "artist": "beethoven",
+      "artist": "Ludwig van Beethoven",
       "url": "https://youtu.be/replace-with-beethoven-recording"
     },
     {
       "title": "Eine kleine Nachtmusik",
-      "artist": "mozart",
+      "artist": "Wolfgang Amadeus Mozart",
       "url": "https://youtu.be/replace-with-mozart-recording"
     }
   ]

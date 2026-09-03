@@ -1,4 +1,4 @@
-"""Parse reusable values from artist and album specifications."""
+"""Parse values from declarative album specifications."""
 
 import math
 from collections.abc import Mapping

@@ -1,146 +1,121 @@
-import json
-import tempfile
 import unittest
-from pathlib import Path
 
-from album_maestro.models import Artist
-from album_maestro.specs import SpecError, load_album
+from album_maestro.specs import SpecError
+from album_maestro.specs.catalog import _parse_album
 from album_maestro.specs.parsing import _parse_timestamp
-from album_maestro.specs.catalog import _parse_album, _parse_artist
 
 
 class AlbumTests(unittest.TestCase):
-    def test_resolves_shared_url_into_numbered_track_requests(self):
-        artist = Artist("Ludwig van Beethoven", "Classical")
+    def test_resolves_album_defaults_and_track_overrides(self):
         album = _parse_album(
             {
                 "title": "Symphony No. 5",
-                "artist": "beethoven",
+                "artist": "Frankfurt Radio Symphony Orchestra",
+                "composer": "Ludwig van Beethoven",
+                "genre": "Classical",
                 "url": "https://example.com/full",
                 "tracks": [
                     {"title": "I. Allegro", "start": "0:04", "end": "8:30"},
-                    {"title": "II. Andante", "start": "8:30"},
+                    {
+                        "title": "II. Andante",
+                        "artist": "Guest Orchestra",
+                        "composer": "Another Composer",
+                        "genre": "Romantic",
+                        "url": "https://example.com/other",
+                        "start": "8:30",
+                    },
                 ],
-            },
-            {"beethoven": artist},
+            }
         )
 
         tracks = album.requests()
 
-        self.assertIs(album.album_artist, artist)
+        self.assertEqual(album.resolved_album_artist(), "Frankfurt Radio Symphony Orchestra")
         self.assertEqual(tracks[0].url, "https://example.com/full")
+        self.assertEqual(tracks[0].artist, "Frankfurt Radio Symphony Orchestra")
+        self.assertEqual(tracks[0].composer, "Ludwig van Beethoven")
+        self.assertEqual(tracks[0].genre, "Classical")
         self.assertEqual(tracks[0].track_number, 1)
         self.assertEqual(tracks[0].track_total, 2)
         self.assertEqual(tracks[0].metadata()["track"], "1/2")
+        self.assertEqual(tracks[1].artist, "Guest Orchestra")
+        self.assertEqual(tracks[1].album_artist, "Frankfurt Radio Symphony Orchestra")
+        self.assertEqual(tracks[1].composer, "Another Composer")
+        self.assertEqual(tracks[1].genre, "Romantic")
         self.assertEqual(tracks[1].start_ms, 510_000)
 
-    def test_supports_a_different_url_for_each_track(self):
-        album = _parse_album(
-            {
-                "title": "Songs",
-                "artist": "artist",
-                "tracks": [
-                    {"title": "One", "url": "https://example.com/one"},
-                    {"title": "Two", "url": "https://example.com/two"},
-                ],
-            },
-            {"artist": Artist("Artist")},
-        )
-
-        self.assertEqual(
-            [track.url for track in album.requests()],
-            ["https://example.com/one", "https://example.com/two"],
-        )
-
-    def test_resolves_track_artists_for_a_compilation(self):
+    def test_defaults_compilation_to_various_artists(self):
         album = _parse_album(
             {
                 "title": "Best of Romantic",
-                "artist": "various-artists",
+                "artist": None,
+                "genre": "Classical",
                 "tracks": [
-                    {
-                        "title": "Brahms",
-                        "artist": "brahms",
-                        "url": "https://example.com/brahms",
-                    },
-                    {
-                        "title": "Schubert",
-                        "artist": "schubert",
-                        "url": "https://example.com/schubert",
-                    },
+                    {"title": "Brahms", "artist": "Johannes Brahms", "url": "one"},
+                    {"title": "Schubert", "artist": "Franz Schubert", "url": "two"},
                 ],
-            },
-            {
-                "various-artists": Artist("Various Artists"),
-                "brahms": Artist("Johannes Brahms"),
-                "schubert": Artist("Franz Schubert"),
-            },
+            }
         )
 
         tracks = album.requests()
 
-        self.assertEqual(
-            [track.artist for track in tracks],
-            ["Johannes Brahms", "Franz Schubert"],
+        self.assertEqual([track.artist for track in tracks], ["Johannes Brahms", "Franz Schubert"])
+        self.assertEqual([track.album_artist for track in tracks], ["Various Artists"] * 2)
+
+    def test_missing_track_artist_also_uses_various_artists(self):
+        album = _parse_album(
+            {
+                "title": "Composer Collection",
+                "composer": "Johann Sebastian Bach",
+                "genre": "Baroque",
+                "tracks": [{"title": "Prelude", "url": "https://example.com"}],
+            }
         )
-        self.assertEqual(tracks[0].album_artist, "Various Artists")
-        self.assertEqual(tracks[0].metadata()["album_artist"], "Various Artists")
 
-    def test_loads_artist_reference_from_directory(self):
-        with tempfile.TemporaryDirectory() as temporary_dir:
-            root = Path(temporary_dir)
-            artists = root / "artists"
-            artists.mkdir()
-            (artists / "beethoven.json").write_text(
-                json.dumps(
-                    {
-                        "name": "Ludwig van Beethoven",
-                        "default_genre": "Classical",
-                    }
-                ),
-                encoding="utf-8",
-            )
-            album_path = root / "symphony.json"
-            album_path.write_text(
-                json.dumps(
-                    {
-                        "title": "Symphony",
-                        "artist": "beethoven",
-                        "tracks": [{"title": "Movement", "url": "https://example.com"}],
-                    }
-                ),
-                encoding="utf-8",
-            )
+        track = album.requests()[0]
 
-            album = load_album(album_path, artists)
+        self.assertEqual(track.artist, "Various Artists")
+        self.assertEqual(track.album_artist, "Various Artists")
+        self.assertEqual(track.composer, "Johann Sebastian Bach")
+        self.assertEqual(track.genre, "Baroque")
 
-        self.assertEqual(album.album_artist.name, "Ludwig van Beethoven")
-        self.assertEqual(album.requests()[0].genre, "Classical")
-
-    def test_rejects_a_track_without_any_url(self):
+    def test_rejects_track_without_any_url(self):
         with self.assertRaisesRegex(
             SpecError, r"album\.tracks\[0\]: 'url' is a required property"
         ):
             _parse_album(
                 {
                     "title": "Album",
-                    "artist": "artist",
+                    "artist": "Artist",
+                    "genre": "Pop",
                     "tracks": [{"title": "Song"}],
-                },
-                {"artist": Artist("Artist")},
+                }
             )
 
-    def test_rejects_noncanonical_artist_reference(self):
-        with self.assertRaisesRegex(SpecError, r"album\.artist: .*does not match"):
+    def test_rejects_album_without_genre(self):
+        with self.assertRaisesRegex(SpecError, "album: .*genre.*required property"):
             _parse_album(
-                {
-                    "title": "Album",
-                    "artist": "Example Artist",
-                    "url": "https://example.com",
-                    "tracks": [{"title": "Song"}],
-                },
-                {"Example Artist": Artist("Example Artist")},
+                {"title": "Album", "artist": "Artist", "tracks": [{"title": "Song", "url": "url"}]}
             )
+
+    def test_accepts_display_names_for_all_credits(self):
+        album = _parse_album(
+            {
+                "title": "Ocean Eyes",
+                "artist": "Owl City",
+                "genre": "Pop",
+                "tracks": [
+                    {
+                        "title": "Cave In",
+                        "artist": "Owl City feat. Someone",
+                        "composer": "Adam Young",
+                        "genre": "Synth-pop",
+                        "url": "https://example.com",
+                    }
+                ],
+            }
+        )
+        self.assertEqual(album.requests()[0].metadata()["artist"], "Owl City feat. Someone")
 
     def test_schema_rejects_unknown_nested_fields(self):
         with self.assertRaisesRegex(
@@ -149,16 +124,13 @@ class AlbumTests(unittest.TestCase):
             _parse_album(
                 {
                     "title": "Album",
-                    "artist": "artist",
+                    "artist": "Artist",
+                    "genre": "Classical",
                     "url": "https://example.com",
                     "tracks": [
-                        {
-                            "title": "Song",
-                            "chapters": [{"start": "0:00", "end": "1:00"}],
-                        }
+                        {"title": "Song", "chapters": [{"start": "0:00", "end": "1:00"}]}
                     ],
-                },
-                {"artist": Artist("Artist")},
+                }
             )
 
     def test_album_schema_rejects_unknown_fields(self):
@@ -166,17 +138,13 @@ class AlbumTests(unittest.TestCase):
             _parse_album(
                 {
                     "title": "Album",
-                    "artist": "artist",
+                    "artist": "Artist",
+                    "genre": "Pop",
                     "url": "https://example.com",
                     "tracks": [{"title": "Song"}],
                     "release_year": 2026,
-                },
-                {"artist": Artist("Artist")},
+                }
             )
-
-    def test_artist_schema_rejects_unknown_fields(self):
-        with self.assertRaisesRegex(SpecError, "artist: Additional properties"):
-            _parse_artist({"name": "Artist", "genre": "Classical"})
 
 
 class TimestampTests(unittest.TestCase):

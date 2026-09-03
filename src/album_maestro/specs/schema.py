@@ -17,12 +17,6 @@ def validate_album(data: Any) -> Mapping[str, Any]:
     return _validate_object(data, "album")
 
 
-def validate_artist(data: Any) -> Mapping[str, Any]:
-    """Validate and return one decoded artist specification."""
-
-    return _validate_object(data, "artist")
-
-
 def _validate_object(data: Any, schema_name: str) -> Mapping[str, Any]:
     """Validate one decoded catalog object against a named schema."""
 

@@ -8,7 +8,7 @@ from album_maestro import pipeline, specs
 from album_maestro.commands import prompts
 from album_maestro.commands.base import Command
 from album_maestro.library import Library, LibraryError
-from album_maestro.models import Album, Artist
+from album_maestro.models import Album
 
 logger = logging.getLogger(__name__)
 
@@ -54,54 +54,20 @@ class CreateCommand(Command):
             logger.error("Album already exists: %s", album_path)
             return 1
 
-        artist_name = prompts.text("Album artist")
-        try:
-            artist_match = self._select_artist(music_library, artist_name)
-            if artist_match is None:
-                artist_reference = specs.reference_from_text(
-                    artist_name, label="artist name"
-                )
-                artist = None
-                artist_path = music_library.artists_dir / f"{artist_reference}.json"
-                if artist_path.exists():
-                    raise LibraryError(
-                        f"artist reference already exists: {artist_reference}"
-                    )
-            else:
-                artist_reference, artist = artist_match
-        except (LibraryError, ValueError) as error:
-            logger.error("Cannot create album: %s", error)
+        artist = prompts.text("Album artist (optional)")
+        composer = prompts.text("Album composer (optional)")
+        genre = prompts.text("Album genre")
+        if not genre:
+            logger.error("Album genre must not be empty")
             return 1
-
-        default_genre = artist.default_genre if artist is not None else None
-        genre = prompts.text("Album genre (optional)", default=default_genre)
-
-        if artist is None:
-            try:
-                artist_reference = music_library.create_artist(artist_name, genre)
-            except LibraryError as error:
-                logger.error("Cannot create artist: %s", error)
-                return 1
-        elif (
-            genre
-            and genre != default_genre
-            and prompts.confirm(
-                f"Set {genre!r} as the default genre for {artist.name}?",
-                default=False,
-            )
-        ):
-            try:
-                music_library.update_artist_default_genre(artist_reference, genre)
-            except LibraryError as error:
-                logger.error("Cannot update artist: %s", error)
-                return 1
 
         shared_url = prompts.text("Album shared URL (optional)")
 
         try:
             album_path = music_library.create_album(
                 title,
-                artist_reference,
+                artist,
+                composer=composer,
                 genre=genre,
                 shared_url=shared_url,
             )
@@ -112,32 +78,6 @@ class CreateCommand(Command):
         print(f"\nAlbum created at {album_path.relative_to(music_library.root)}")
         print("You can edit JSON to create tracks.")
         return 0
-
-    @staticmethod
-    def _select_artist(music_library: Library, name: str) -> tuple[str, Artist] | None:
-        """Select one artist, prompting when the name is ambiguous.
-
-        Return the selected catalog reference and artist, or ``None`` when no
-        display name contains ``name``.
-        """
-
-        matches = music_library.artist_matches(name)
-        if not matches:
-            return None
-        if len(matches) == 1:
-            return matches[0]
-
-        print("Multiple matching artists found:")
-        for index, (_, artist) in enumerate(matches, start=1):
-            print(f"  {index}. {artist.name}")
-
-        artist_number = prompts.bounded_number(
-            "Select an artist",
-            minimum=1,
-            maximum=len(matches),
-        )
-        print()
-        return matches[artist_number - 1]
 
 
 class DownloadCommand(Command):

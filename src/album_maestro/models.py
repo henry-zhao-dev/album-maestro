@@ -1,28 +1,14 @@
-"""Domain models for the catalog and its resolved processing requests.
-
-``Artist``, ``Album``, ``AlbumTrack``, and ``Chapter`` represent persistent JSON
-configuration. ``TrackRequest`` is the fully resolved form consumed by the
-download pipeline after album-level defaults have been applied.
-"""
+"""Domain models for catalog specifications and resolved media requests."""
 
 from dataclasses import dataclass
 
 
-@dataclass(frozen=True)
-class Artist:
-    """Reusable artist metadata loaded from an ``artists/<id>.json`` file."""
-
-    name: str
-    default_genre: str | None = None
+VARIOUS_ARTISTS = "Various Artists"
 
 
 @dataclass(frozen=True)
 class Chapter:
-    """A chapter marker within one output track.
-
-    JSON declarations need only a start time. Chapter resolution derives the
-    end from the next chapter (or the enclosing track) before embedding it.
-    """
+    """A chapter marker within one output track."""
 
     start_ms: int
     title: str | None = None
@@ -33,13 +19,15 @@ class Chapter:
 class AlbumTrack:
     """One output audio file declared inside an album.
 
-    ``artist`` and ``url`` override their album-level values when present.
-    Start and end timestamps refer to the selected source recording.
+    Metadata values override the corresponding album-level defaults when
+    present. Start and end timestamps refer to the selected source recording.
     """
 
     title: str
-    artist: Artist | None = None
+    artist: str | None = None
     url: str | None = None
+    composer: str | None = None
+    genre: str | None = None
     start_ms: int | None = None
     end_ms: int | None = None
     chapters: tuple[Chapter, ...] = ()
@@ -47,17 +35,14 @@ class AlbumTrack:
 
 @dataclass(frozen=True)
 class TrackRequest:
-    """A fully resolved request to produce one output audio file.
-
-    Unlike ``AlbumTrack``, this processing model contains concrete string
-    metadata and a required source URL.
-    """
+    """A fully resolved request consumed by the download pipeline."""
 
     url: str
     title: str
     artist: str
     album_artist: str
     album: str
+    composer: str | None = None
     genre: str | None = None
     track_number: int | None = None
     track_total: int | None = None
@@ -66,7 +51,7 @@ class TrackRequest:
     chapters: tuple[Chapter, ...] = ()
 
     def metadata(self) -> dict[str, str]:
-        """Return the audio tags resolved from album configuration."""
+        """Return standard audio tags resolved from album configuration."""
 
         metadata = {
             key: value
@@ -75,6 +60,7 @@ class TrackRequest:
                 ("artist", self.artist),
                 ("album_artist", self.album_artist),
                 ("album", self.album),
+                ("composer", self.composer),
                 ("genre", self.genre),
                 ("track", self.track_number_tag()),
             )
@@ -92,34 +78,34 @@ class TrackRequest:
 
 @dataclass(frozen=True)
 class Album:
-    """An ordered release with a grouping artist and optional shared defaults.
+    """An ordered release with album-level metadata defaults.
 
-    ``album_artist`` identifies the artist under which the whole album is
-    grouped. Individual tracks may credit different artists, as in a
-    compilation, without changing the album artist.
+    The album-level ``artist`` is the default track artist and output
+    ``album_artist``. It may be absent for compilations. In that case both
+    output artist fields use ``Various Artists`` unless a track overrides its
+    own artist. Composer is an independent optional credit and never fills in
+    for artist. Genre is explicit and inherited by tracks unless overridden.
     """
 
     title: str
-    album_artist: Artist
+    artist: str | None
     tracks: tuple[AlbumTrack, ...]
-    genre: str | None = None
+    genre: str
+    composer: str | None = None
     url: str | None = None
 
+    def resolved_album_artist(self) -> str:
+        """Return the output album artist, defaulting compilations."""
+
+        return self.artist or VARIOUS_ARTISTS
+
     def requests(self) -> list[TrackRequest]:
-        """Resolve catalog tracks into pipeline-ready requests.
-
-        Resolution rules, in precedence order:
-
-        * a track URL overrides the shared album URL;
-        * a track artist overrides the album artist for that track's credit;
-        * album genre overrides the selected track artist's default genre;
-        * array order supplies track number and total.
-        """
+        """Apply album defaults and per-track overrides."""
 
         total = len(self.tracks)
+        album_artist = self.resolved_album_artist()
         requests: list[TrackRequest] = []
         for index, track in enumerate(self.tracks, start=1):
-            artist = track.artist or self.album_artist
             url = track.url or self.url
             if url is None:
                 raise ValueError(f"track {index} has no source URL")
@@ -127,10 +113,11 @@ class Album:
                 TrackRequest(
                     url=url,
                     title=track.title,
-                    artist=artist.name,
-                    album_artist=self.album_artist.name,
+                    artist=track.artist or album_artist,
+                    album_artist=album_artist,
                     album=self.title,
-                    genre=self.genre or artist.default_genre,
+                    composer=track.composer or self.composer,
+                    genre=track.genre or self.genre,
                     track_number=index,
                     track_total=total,
                     start_ms=track.start_ms,
