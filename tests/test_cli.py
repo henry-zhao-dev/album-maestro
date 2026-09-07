@@ -1,3 +1,4 @@
+import json
 import sqlite3
 import tempfile
 import unittest
@@ -8,7 +9,7 @@ from unittest.mock import call, patch
 
 from album_maestro.cli import main
 from album_maestro.library import Library
-from album_maestro.models import Album
+from album_maestro.models import Album, AlbumTrack
 
 
 class HelpTests(unittest.TestCase):
@@ -109,6 +110,69 @@ class ImportCommandTests(unittest.TestCase):
         self.assertEqual(result, 0)
         self.assertEqual(album.artist, "New Artist")
         self.assertEqual([track.title for track in album.tracks], ["Fresh Track"])
+
+
+class ExportCommandTests(unittest.TestCase):
+    def test_exports_one_album_to_schema_compatible_json(self):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir) / "library"
+            Library(root=root, name="Music").initialize()
+            library = Library.load(root)
+            library.create_album(
+                Album(
+                    title="Album",
+                    artist="Artist",
+                    genre="Classical",
+                    url="https://example.com/source",
+                    tracks=(
+                        AlbumTrack(title="Opening", start_ms=1_000, end_ms=5_000),
+                    ),
+                )
+            )
+            output = Path(temporary_dir) / "album.json"
+
+            result = main(
+                [
+                    "export",
+                    "album",
+                    "--json",
+                    str(output),
+                    "--library",
+                    str(root),
+                ]
+            )
+            exported = json.loads(output.read_text(encoding="utf-8"))
+
+        self.assertEqual(result, 0)
+        self.assertEqual(exported["title"], "Album")
+        self.assertEqual(exported["tracks"][0]["start"], "0:01")
+        self.assertEqual(exported["tracks"][0]["end"], "0:05")
+
+    def test_exports_all_albums_to_a_directory(self):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir) / "library"
+            Library(root=root, name="Music").initialize()
+            library = Library.load(root)
+            for title in ("Alpha", "Beta"):
+                library.create_album(
+                    Album(title=title, artist="Artist", genre="Pop", tracks=())
+                )
+            output_dir = Path(temporary_dir) / "albums"
+
+            result = main(
+                [
+                    "export",
+                    "--all",
+                    "--directory",
+                    str(output_dir),
+                    "--library",
+                    str(root),
+                ]
+            )
+            exported_names = sorted(path.name for path in output_dir.glob("*.json"))
+
+        self.assertEqual(result, 0)
+        self.assertEqual(exported_names, ["alpha.json", "beta.json"])
 
 
 class AlbumCommandTests(unittest.TestCase):

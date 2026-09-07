@@ -28,6 +28,14 @@ album-maestro import --directory albums \
   --library ~/Music/album-maestro-example
 ```
 
+Export an imported album back to JSON with:
+
+```shell
+album-maestro export beethoven-symphony-no-5 \
+  --json beethoven-symphony-no-5.json \
+  --library ~/Music/album-maestro-example
+```
+
 Then download the imported albums with:
 
 ```shell

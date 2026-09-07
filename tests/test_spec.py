@@ -1,11 +1,51 @@
 import unittest
 
 from album_maestro.specs import SpecError
-from album_maestro.specs.catalog import _parse_album
+from album_maestro.specs.catalog import _parse_album, dump_album
 from album_maestro.specs.parsing import parse_timestamp
 
 
 class AlbumTests(unittest.TestCase):
+    def test_dump_album_preserves_editable_specification_shape(self):
+        album = _parse_album(
+            {
+                "title": "Album",
+                "artist": "Artist",
+                "composer": "Composer",
+                "genre": "Classical",
+                "url": "https://example.com/full",
+                "tracks": [
+                    {
+                        "title": "Opening",
+                        "start": "1:02.500",
+                        "chapters": [{"start": "1:03", "title": "Theme"}],
+                    }
+                ],
+            }
+        )
+
+        exported = dump_album(album)
+        self.assertEqual(
+            list(exported), ["title", "artist", "composer", "genre", "url", "tracks"]
+        )
+        self.assertEqual(
+            exported,
+            {
+                "title": "Album",
+                "artist": "Artist",
+                "composer": "Composer",
+                "genre": "Classical",
+                "url": "https://example.com/full",
+                "tracks": [
+                    {
+                        "title": "Opening",
+                        "start": "1:02.500",
+                        "chapters": [{"start": "1:03", "title": "Theme"}],
+                    }
+                ],
+            },
+        )
+
     def test_resolves_album_defaults_and_track_overrides(self):
         album = _parse_album(
             {

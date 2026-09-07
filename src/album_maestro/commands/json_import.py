@@ -19,13 +19,17 @@ class ImportCommand(Command):
     help = "Import an album from JSON"
 
     def configure(self, parser: argparse.ArgumentParser) -> None:
-        selection = parser.add_mutually_exclusive_group(required=True)
-        selection.add_argument(
+        source = parser.add_mutually_exclusive_group(required=True)
+        source.add_argument(
             "--json",
+            type=Path,
+            metavar="FILE",
             help="An album JSON specs file",
         )
-        selection.add_argument(
+        source.add_argument(
             "--directory",
+            type=Path,
+            metavar="DIRECTORY",
             help="A directory containing album JSON files",
         )
         parser.add_argument(
@@ -47,9 +51,7 @@ class ImportCommand(Command):
             logger.error("Cannot load library: %s", error)
             return 1
 
-        json_paths = (
-            [Path(args.json)] if args.json else self.list_json_files(args.directory)
-        )
+        json_paths = [args.json] if args.json else self.list_json_files(args.directory)
         if not json_paths:
             logger.error("No JSON files found")
             return 1

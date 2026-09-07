@@ -191,6 +191,25 @@ existing album references are rejected. Pass `--overwrite` to replace an
 existing album, including all of its tracks and chapters. Downloaded audio
 files are not changed.
 
+Export one album back to a JSON specification:
+
+```shell
+album-maestro export beethoven-symphony-no-5 \
+  --json beethoven-symphony-no-5.json \
+  --library ~/Music/album-maestro
+```
+
+Export every album to one file per album:
+
+```shell
+album-maestro export --all --directory albums \
+  --library ~/Music/album-maestro
+```
+
+Export preserves album-level defaults and track-level overrides so the JSON
+can be edited and imported again. Existing output files are not replaced
+unless `--overwrite` is passed.
+
 ## Album workflow
 
 Inspect the catalog and one album with:

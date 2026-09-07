@@ -9,6 +9,7 @@ from album_maestro.specs.parsing import (
 )
 from album_maestro.specs.catalog import (
     catalog_reference,
+    dump_album,
     load_album,
     reference_from_text,
 )
@@ -18,6 +19,7 @@ from album_maestro.specs.storage import load_json, set_json_fields, write_json
 __all__ = [
     "SpecError",
     "catalog_reference",
+    "dump_album",
     "load_album",
     "load_json",
     "optional_string",

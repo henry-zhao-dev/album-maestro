@@ -21,11 +21,14 @@ def load_json(path: str | Path, *, label: str) -> Any:
         ) from error
 
 
-def write_json(path: Path, data: dict[str, object]) -> None:
-    """Write formatted JSON without replacing an existing file."""
+def write_json(
+    path: Path, data: dict[str, object], *, overwrite: bool = False
+) -> None:
+    """Write formatted JSON, optionally replacing an existing file."""
 
     try:
-        with path.open("x", encoding="utf-8") as output:
+        mode = "w" if overwrite else "x"
+        with path.open(mode, encoding="utf-8") as output:
             json.dump(data, output, indent=2)
             output.write("\n")
     except FileExistsError as error:

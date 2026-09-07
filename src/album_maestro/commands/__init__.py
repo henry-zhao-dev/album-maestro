@@ -4,11 +4,13 @@ from album_maestro.commands.album import AlbumCommand
 from album_maestro.commands.base import Command
 from album_maestro.commands.initialize import InitCommand
 from album_maestro.commands.json_import import ImportCommand
+from album_maestro.commands.json_export import ExportCommand
 
 _registered_commands = (
     InitCommand(),
     AlbumCommand(),
     ImportCommand(),
+    ExportCommand(),
 )
 
 # Nested operations such as ``album download`` are owned by their parent command.
