@@ -129,6 +129,14 @@ class Library:
         except database.DatabaseError as error:
             raise LibraryError(str(error)) from error
 
+    def delete_album(self, reference: str) -> None:
+        """Delete one album from the catalog."""
+
+        try:
+            database.delete_album(self.database_path, reference)
+        except database.DatabaseError as error:
+            raise LibraryError(str(error)) from error
+
     def create_track(
         self,
         reference: str,

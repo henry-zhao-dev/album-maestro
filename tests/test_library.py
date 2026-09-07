@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 
 from album_maestro.library import Library, LibraryError
+from album_maestro.models import Chapter
 
 
 class InitializeLibraryTests(unittest.TestCase):
@@ -147,6 +148,43 @@ class CatalogMutationTests(unittest.TestCase):
 
             with self.assertRaisesRegex(LibraryError, "already exists"):
                 library.create_album("Album", "Other Artist", genre="Pop")
+
+    def test_deletes_album_and_cascades_tracks_and_chapters(self):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir)
+            library = Library(root=root, name="Music")
+            library.initialize()
+            library.create_album("Album", "Artist", genre="Pop")
+            library.create_track(
+                "album",
+                title="Track",
+                chapters=(Chapter(0, "Opening", 1_000),),
+            )
+            library.create_track("album", title="Second Track")
+
+            library.delete_album("album")
+
+            self.assertEqual(library.list_albums(), [])
+            with sqlite3.connect(library.database_path) as connection:
+                self.assertEqual(
+                    connection.execute("SELECT COUNT(*) FROM tracks").fetchone(),
+                    (0,),
+                )
+                self.assertEqual(
+                    connection.execute("SELECT COUNT(*) FROM chapters").fetchone(),
+                    (0,),
+                )
+            with self.assertRaisesRegex(LibraryError, "album not found: album"):
+                library.load_album("album")
+
+    def test_delete_rejects_unknown_album_reference(self):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir)
+            library = Library(root=root, name="Music")
+            library.initialize()
+
+            with self.assertRaisesRegex(LibraryError, "album not found: missing"):
+                library.delete_album("missing")
 
     def test_rejects_blank_genre(self):
         with tempfile.TemporaryDirectory() as temporary_dir:
