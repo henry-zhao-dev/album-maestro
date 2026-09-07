@@ -69,6 +69,10 @@ def _download_tracks(
     destination.mkdir(parents=True, exist_ok=True)
 
     outputs: list[Path] = []
+    output_paths = [_track_output_path(track, destination) for track in tracks]
+    if len(set(output_paths)) != len(output_paths):
+        raise PipelineError("multiple tracks resolve to the same output path")
+
     sources: dict[str, Path | None] = {}
     source_counts = Counter(track.url for track in tracks)
     source_numbers = {url: index for index, url in enumerate(source_counts, start=1)}
@@ -204,7 +208,32 @@ def _track_output_path(
 ) -> Path:
     """Return the final library path for a track."""
 
-    return destination / track.album_artist / track.album / f"{track.title}{suffix}"
+    destination = destination.resolve()
+    components = (
+        _safe_path_component(track.album_artist, label="album artist"),
+        _safe_path_component(track.album, label="album title"),
+        _safe_path_component(track.title, label="track title") + suffix,
+    )
+    output = destination.joinpath(*components)
+    try:
+        output.resolve().relative_to(destination)
+    except ValueError as error:
+        raise PipelineError("track output path escapes the downloads directory") from error
+    return output
+
+
+def _safe_path_component(value: str, *, label: str) -> str:
+    """Validate one catalog value before using it as a path component."""
+
+    if not value or value in {".", ".."}:
+        raise PipelineError(f"{label} cannot be used as an output path component")
+    if any(character in value for character in ("/", "\\", "\x00")):
+        raise PipelineError(f"{label} contains a path separator or null character")
+    if any(ord(character) < 32 or ord(character) == 127 for character in value):
+        raise PipelineError(f"{label} contains a control character")
+    if Path(value).is_absolute():
+        raise PipelineError(f"{label} must be a relative path component")
+    return value
 
 
 def _resolve_time_range(track: TrackRequest, duration_ms: int) -> tuple[int, int]:
