@@ -10,10 +10,55 @@ from album_maestro.pipeline import (
     _download_tracks,
     _resolve_chapters,
     _resolve_time_range,
+    _track_output_path,
 )
 
 
 class PipelineTests(unittest.TestCase):
+    def test_output_path_rejects_path_traversal(self):
+        track = _track_request(title="../outside")
+
+        with tempfile.TemporaryDirectory() as output_dir:
+            with self.assertRaisesRegex(PipelineError, "path separator"):
+                _track_output_path(track, Path(output_dir))
+
+    def test_output_path_rejects_windows_path_separators(self):
+        track = _track_request(title="folder\\outside")
+
+        with tempfile.TemporaryDirectory() as output_dir:
+            with self.assertRaisesRegex(PipelineError, "path separator"):
+                _track_output_path(track, Path(output_dir))
+
+    def test_output_path_preserves_safe_display_names(self):
+        track = _track_request(title="Track 01 — Finale")
+
+        with tempfile.TemporaryDirectory() as output_dir:
+            result = _track_output_path(track, Path(output_dir))
+
+        self.assertEqual(result.name, "Track 01 — Finale.m4a")
+        self.assertEqual(result.parent.name, "Album")
+
+    def test_output_path_rejects_symlinked_directory_outside_destination(self):
+        track = _track_request()
+
+        with (
+            tempfile.TemporaryDirectory() as output_dir,
+            tempfile.TemporaryDirectory() as outside_dir,
+        ):
+            destination = Path(output_dir)
+            (destination / "Artist").symlink_to(outside_dir, target_is_directory=True)
+
+            with self.assertRaisesRegex(PipelineError, "escapes"):
+                _track_output_path(track, destination)
+
+    def test_download_tracks_rejects_duplicate_output_paths(self):
+        first = _track_request(title="Same")
+        second = _track_request(title="Same", url="https://example.com/other")
+
+        with tempfile.TemporaryDirectory() as output_dir:
+            with self.assertRaisesRegex(PipelineError, "same output path"):
+                _download_tracks((first, second), output_dir)
+
     @patch("album_maestro.pipeline.shutil.move")
     @patch("album_maestro.pipeline.shutil.copy2")
     @patch(
