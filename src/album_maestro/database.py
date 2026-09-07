@@ -98,29 +98,68 @@ def load_name(path: str | Path) -> str:
 
 def create_album(
     path: str | Path,
+    album: Album,
     *,
-    reference: str,
-    title: str,
-    artist: str | None,
-    composer: str | None,
-    genre: str,
-    url: str | None,
-) -> AlbumSummary:
-    """Insert an album and return its summary."""
+    overwrite: bool = False,
+) -> str:
+    """Insert or replace one complete album graph in a single transaction.
 
+    Returns:
+        str: The generated lowercase kebab-case album reference.
+    """
+
+    reference = reference_from_text(album.title, label="album title")
     try:
         with sqlite3.connect(path) as connection:
             _configure(connection)
+            if overwrite:
+                # Safe to execute even if reference does not exist
+                connection.execute(
+                    "DELETE FROM albums WHERE reference = ?", (reference,)
+                )
+
             cursor = connection.execute(
                 """
                 INSERT INTO albums (reference, title, artist, composer, genre, url)
                 VALUES (?, ?, ?, ?, ?, ?)
                 """,
-                (reference, title, artist, composer, genre, url),
+                (
+                    reference,
+                    album.title,
+                    album.artist,
+                    album.composer,
+                    album.genre,
+                    album.url,
+                ),
             )
             album_id = cursor.lastrowid
             if album_id is None:
                 raise DatabaseError("failed to obtain the new album ID")
+
+            for position, track in enumerate(album.tracks, start=1):
+                track_id = connection.execute(
+                    """
+                    INSERT INTO tracks (
+                        album_id, position, title, artist, composer, genre, url,
+                        start_ms, end_ms
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        album_id,
+                        position,
+                        track.title,
+                        track.artist,
+                        track.composer,
+                        track.genre,
+                        track.url,
+                        track.start_ms,
+                        track.end_ms,
+                    ),
+                ).lastrowid
+                if track_id is None:
+                    raise DatabaseError("failed to obtain the new track ID")
+                _insert_chapters(connection, track_id, track.chapters)
     except sqlite3.IntegrityError as error:
         if "albums.reference" in str(error):
             raise DatabaseError(f"album already exists: {reference}") from error
@@ -128,15 +167,7 @@ def create_album(
     except (OSError, sqlite3.Error) as error:
         raise DatabaseError(str(error)) from error
 
-    return AlbumSummary(
-        id=album_id,
-        reference=reference,
-        title=title,
-        artist=artist,
-        composer=composer,
-        genre=genre,
-        track_count=0,
-    )
+    return reference
 
 
 def list_albums(path: str | Path) -> list[AlbumSummary]:

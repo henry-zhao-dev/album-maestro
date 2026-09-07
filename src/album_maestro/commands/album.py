@@ -42,18 +42,21 @@ class CreateCommand(Command):
         shared_url = prompts.text("Album shared URL (optional)")
 
         try:
-            album = music_library.create_album(
-                title,
-                artist,
-                composer=composer,
-                genre=genre,
-                shared_url=shared_url,
+            reference = music_library.create_album(
+                Album(
+                    title=title,
+                    artist=artist or None,
+                    composer=composer or None,
+                    genre=genre,
+                    url=shared_url or None,
+                    tracks=(),
+                )
             )
-        except LibraryError as error:
+        except (LibraryError, ValueError) as error:
             logger.error("Cannot create album: %s", error)
             return 1
 
-        print(f"\nAlbum created: {album.reference}")
+        print(f"\nAlbum created: {reference}")
         print("The album has no tracks yet. Use 'album edit' to add tracks.")
         return 0
 

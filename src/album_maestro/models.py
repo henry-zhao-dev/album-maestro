@@ -2,6 +2,8 @@
 
 from dataclasses import dataclass
 
+from album_maestro.text import optional_text, required_text
+
 
 VARIOUS_ARTISTS = "Various Artists"
 
@@ -27,6 +29,15 @@ class Chapter:
     title: str | None = None
     end_ms: int | None = None
 
+    def __post_init__(self) -> None:
+        """Normalize chapter text and validate its time range."""
+
+        if self.start_ms < 0:
+            raise ValueError("chapter start must not be negative")
+        if self.end_ms is not None and self.end_ms <= self.start_ms:
+            raise ValueError("chapter end must be later than chapter start")
+        object.__setattr__(self, "title", optional_text(self.title))
+
 
 @dataclass(frozen=True)
 class AlbumTrack:
@@ -44,6 +55,22 @@ class AlbumTrack:
     start_ms: int | None = None
     end_ms: int | None = None
     chapters: tuple[Chapter, ...] = ()
+
+    def __post_init__(self) -> None:
+        """Normalize track text and validate its time range."""
+
+        object.__setattr__(self, "title", required_text(self.title, "track title"))
+        object.__setattr__(self, "artist", optional_text(self.artist))
+        object.__setattr__(self, "url", optional_text(self.url))
+        object.__setattr__(self, "composer", optional_text(self.composer))
+        object.__setattr__(self, "genre", optional_text(self.genre))
+        if (
+            self.start_ms is not None
+            and self.end_ms is not None
+            and self.end_ms <= self.start_ms
+        ):
+            raise ValueError("track end must be later than track start")
+        object.__setattr__(self, "chapters", tuple(self.chapters))
 
 
 @dataclass(frozen=True)
@@ -106,6 +133,16 @@ class Album:
     genre: str
     composer: str | None = None
     url: str | None = None
+
+    def __post_init__(self) -> None:
+        """Normalize text and validate invariants for one album model."""
+
+        object.__setattr__(self, "title", required_text(self.title, "album title"))
+        object.__setattr__(self, "artist", optional_text(self.artist))
+        object.__setattr__(self, "composer", optional_text(self.composer))
+        object.__setattr__(self, "genre", required_text(self.genre, "album genre"))
+        object.__setattr__(self, "url", optional_text(self.url))
+        object.__setattr__(self, "tracks", tuple(self.tracks))
 
     def resolved_album_artist(self) -> str:
         """Return the output album artist, defaulting compilations."""

@@ -8,6 +8,7 @@ from unittest.mock import call, patch
 
 from album_maestro.cli import main
 from album_maestro.library import Library
+from album_maestro.models import Album
 
 
 class HelpTests(unittest.TestCase):
@@ -52,6 +53,62 @@ class InitCommandTests(unittest.TestCase):
                     connection.execute("SELECT name FROM library").fetchone(),
                     ("collection",),
                 )
+
+
+class ImportCommandTests(unittest.TestCase):
+    def test_imports_one_json_album_into_sqlite(self):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir) / "library"
+            Library(root=root, name="Music").initialize()
+            source = Path(temporary_dir) / "album.json"
+            source.write_text(
+                '{"title":"Imported Album","artist":"Artist",'
+                '"genre":"Classical","url":"https://example.com/source",'
+                '"tracks":[{"title":"Opening","start":"0:01",'
+                '"end":"0:05"}]}',
+                encoding="utf-8",
+            )
+
+            result = main(
+                ["import", "--json", str(source), "--library", str(root)]
+            )
+            album = Library.load(root).load_album("imported-album")
+
+        self.assertEqual(result, 0)
+        self.assertEqual(album.tracks[0].start_ms, 1_000)
+        self.assertEqual(album.tracks[0].end_ms, 5_000)
+
+    def test_import_directory_overwrites_existing_album(self):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir) / "library"
+            Library(root=root, name="Music").initialize()
+            library = Library.load(root)
+            library.create_album(Album(title="Album", artist="Old Artist", genre="Pop", tracks=()))
+            library.create_track("album", title="Stale Track")
+            source_dir = Path(temporary_dir) / "albums"
+            source_dir.mkdir()
+            (source_dir / "album.json").write_text(
+                '{"title":"Album","artist":"New Artist",'
+                '"genre":"Jazz","tracks":[{"title":"Fresh Track",'
+                '"url":"https://example.com/source"}]}',
+                encoding="utf-8",
+            )
+
+            result = main(
+                [
+                    "import",
+                    "--directory",
+                    str(source_dir),
+                    "--library",
+                    str(root),
+                    "--overwrite",
+                ]
+            )
+            album = Library.load(root).load_album("album")
+
+        self.assertEqual(result, 0)
+        self.assertEqual(album.artist, "New Artist")
+        self.assertEqual([track.title for track in album.tracks], ["Fresh Track"])
 
 
 class AlbumCommandTests(unittest.TestCase):
@@ -121,8 +178,8 @@ class AlbumCommandTests(unittest.TestCase):
             root = Path(temporary_dir) / "library"
             library = Library(root=root, name="Music")
             library.initialize()
-            library.create_album("Beethoven Symphony", "Ludwig van Beethoven", genre="Classical")
-            library.create_album("Ocean Eyes", "Owl City", genre="Pop")
+            library.create_album(Album(title="Beethoven Symphony", artist="Ludwig van Beethoven", genre="Classical", tracks=()))
+            library.create_album(Album(title="Ocean Eyes", artist="Owl City", genre="Pop", tracks=()))
             output = StringIO()
             with redirect_stdout(output):
                 result = main(["album", "search", "--artist", "Beethoven", "--library", str(root)])
@@ -275,15 +332,20 @@ def _create_album_library(root: Path) -> None:
 
 def _write_album(root: Path, reference: str, title: str) -> None:
     library = Library.load(root)
-    album = library.create_album(
-        title,
-        "Ludwig van Beethoven",
-        composer="Ludwig van Beethoven",
-        genre="Classical",
-        shared_url="https://example.com/full",
+    reference_from_title = library.create_album(
+        Album(
+            title=title,
+            artist="Ludwig van Beethoven",
+            composer="Ludwig van Beethoven",
+            genre="Classical",
+            url="https://example.com/full",
+            tracks=(),
+        )
     )
-    if album.reference != reference:
-        raise AssertionError(f"expected reference {reference!r}, got {album.reference!r}")
+    if reference_from_title != reference:
+        raise AssertionError(
+            f"expected reference {reference!r}, got {reference_from_title!r}"
+        )
     library.create_track(
         reference,
         title="First",

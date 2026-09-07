@@ -5,6 +5,7 @@ from pathlib import Path
 
 from album_maestro import database
 from album_maestro.models import Album, AlbumSummary, Chapter
+from album_maestro.text import optional_text, required_text
 
 
 class LibraryError(ValueError):
@@ -82,35 +83,19 @@ class Library:
 
     def create_album(
         self,
-        title: str,
-        artist: str | None,
+        album: Album,
         *,
-        composer: str | None = None,
-        genre: str,
-        shared_url: str | None = None,
-    ) -> AlbumSummary:
-        """Create an album row in the SQLite catalog."""
+        overwrite: bool = False,
+    ) -> str:
+        """Create or replace one complete album model in the catalog.
 
-        title = title.strip()
-        artist = _optional_text(artist)
-        composer = _optional_text(composer)
-        genre = genre.strip()
-        shared_url = _optional_text(shared_url)
-        if not title:
-            raise LibraryError("album title must not be empty")
-        if not genre:
-            raise LibraryError("album genre must not be empty")
+        Returns:
+            str: The generated lowercase kebab-case album reference.
+        """
 
         try:
-            reference = database.reference_from_text(title, label="album title")
             return database.create_album(
-                self.database_path,
-                reference=reference,
-                title=title,
-                artist=artist,
-                composer=composer,
-                genre=genre,
-                url=shared_url,
+                self.database_path, album, overwrite=overwrite
             )
         except database.DatabaseError as error:
             raise LibraryError(str(error)) from error
@@ -119,9 +104,9 @@ class Library:
         """Update album metadata in the SQLite catalog."""
 
         normalized = {
-            key: _required_text(value, key)
+            key: required_text(value, f"album {key}", error_type=LibraryError)
             if key in {"title", "genre"}
-            else _optional_text(value)
+            else optional_text(value)
             for key, value in fields.items()
         }
         try:
@@ -162,10 +147,10 @@ class Library:
                 self.database_path,
                 reference,
                 title=title,
-                artist=_optional_text(artist),
-                composer=_optional_text(composer),
-                genre=_optional_text(genre),
-                url=_optional_text(url),
+                artist=optional_text(artist),
+                composer=optional_text(composer),
+                genre=optional_text(genre),
+                url=optional_text(url),
                 start_ms=start_ms,
                 end_ms=end_ms,
                 chapters=chapters,
@@ -179,7 +164,7 @@ class Library:
         """Update one track's metadata or time range."""
 
         normalized = {
-            key: _optional_text(value) if isinstance(value, str) else value
+            key: optional_text(value) if isinstance(value, str) else value
             for key, value in fields.items()
         }
         try:
@@ -233,18 +218,3 @@ class Library:
         music_library = cls(root=resolved_root, name=name)
         music_library.validate()
         return music_library
-
-
-def _optional_text(value: str | None) -> str | None:
-    """Normalize optional text to ``None`` when blank."""
-
-    return value.strip() if value and value.strip() else None
-
-
-def _required_text(value: str | None, label: str) -> str:
-    """Normalize required text or raise a library error."""
-
-    normalized = _optional_text(value)
-    if normalized is None:
-        raise LibraryError(f"album {label} must not be empty")
-    return normalized
