@@ -5,6 +5,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from album_maestro.specs.errors import SpecError
+from album_maestro.text import normalize_text, optional_text
 
 __all__ = [
     "optional_string",
@@ -22,7 +23,7 @@ def required_string(
     value = data.get(key)
     if not isinstance(value, str) or not value.strip():
         raise error_type(f"'{key}' must be a non-empty string")
-    return value.strip()
+    return normalize_text(value)
 
 
 def optional_string(data: Mapping[str, Any], key: str) -> str | None:
@@ -33,7 +34,7 @@ def optional_string(data: Mapping[str, Any], key: str) -> str | None:
         return None
     if not isinstance(value, str):
         raise SpecError(f"'{key}' must be a string")
-    return value.strip() or None
+    return optional_text(value)
 
 
 def optional_timestamp(data: Mapping[str, Any], key: str) -> int | None:

@@ -14,9 +14,29 @@ album-maestro album list --library ~/Music/album-maestro-example
 
 The YouTube URLs in the fixture files are placeholders.
 
-The future import workflow will make these examples directly usable.
+Import an example album into SQLite with:
 
-For the existing JSON-backed download workflow, run:
+```shell
+album-maestro import --json albums/beethoven-symphony-no-5.json \
+  --library ~/Music/album-maestro-example
+```
+
+Or import every example album at once:
+
+```shell
+album-maestro import --directory albums \
+  --library ~/Music/album-maestro-example
+```
+
+Export an imported album back to JSON with:
+
+```shell
+album-maestro export beethoven-symphony-no-5 \
+  --json beethoven-symphony-no-5.json \
+  --library ~/Music/album-maestro-example
+```
+
+Then download the imported albums with:
 
 ```shell
 album-maestro album download --all --library ~/Music/album-maestro-example

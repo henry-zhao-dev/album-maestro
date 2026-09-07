@@ -43,6 +43,21 @@ def load_album(path: str | Path) -> Album:
     return _parse_album(load_json(path, label="album"))
 
 
+def dump_album(album: Album) -> dict[str, object]:
+    """Convert one album model to the JSON specification shape."""
+
+    data: dict[str, object] = {"title": album.title}
+    if album.artist is not None:
+        data["artist"] = album.artist
+    if album.composer is not None:
+        data["composer"] = album.composer
+    data["genre"] = album.genre
+    if album.url is not None:
+        data["url"] = album.url
+    data["tracks"] = [_track_data(track) for track in album.tracks]
+    return data
+
+
 def _parse_album(data: Any) -> Album:
     """Convert one schema-valid album object into the domain model."""
 
@@ -106,3 +121,46 @@ def _parse_chapters(data: list[Mapping[str, Any]]) -> list[Chapter]:
     if len({chapter.start_ms for chapter in chapters}) != len(chapters):
         raise SpecError("chapter start times must be unique")
     return chapters
+
+
+def _track_data(track: AlbumTrack) -> dict[str, object]:
+    """Convert one album track to its JSON specification shape."""
+
+    data: dict[str, object] = {"title": track.title}
+    for key, value in (
+        ("artist", track.artist),
+        ("url", track.url),
+        ("composer", track.composer),
+        ("genre", track.genre),
+    ):
+        if value is not None:
+            data[key] = value
+    if track.start_ms is not None:
+        data["start"] = _format_timestamp(track.start_ms)
+    if track.end_ms is not None:
+        data["end"] = _format_timestamp(track.end_ms)
+    if track.chapters:
+        data["chapters"] = [_chapter_data(chapter) for chapter in track.chapters]
+    return data
+
+
+def _chapter_data(chapter: Chapter) -> dict[str, object]:
+    """Convert one chapter marker to its JSON specification shape."""
+
+    data: dict[str, object] = {"start": _format_timestamp(chapter.start_ms)}
+    if chapter.title is not None:
+        data["title"] = chapter.title
+    return data
+
+
+def _format_timestamp(milliseconds: int) -> str:
+    """Format milliseconds using the timestamp syntax accepted by the schema."""
+
+    total_seconds, remainder = divmod(milliseconds, 1000)
+    minutes, seconds = divmod(total_seconds, 60)
+    hours, minutes = divmod(minutes, 60)
+    if hours:
+        prefix = f"{hours}:{minutes:02}:{seconds:02}"
+    else:
+        prefix = f"{minutes}:{seconds:02}"
+    return f"{prefix}.{remainder:03}" if remainder else prefix

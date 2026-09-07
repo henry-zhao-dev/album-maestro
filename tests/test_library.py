@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 
 from album_maestro.library import Library, LibraryError
-from album_maestro.models import Chapter
+from album_maestro.models import Album, AlbumTrack, Chapter
 
 
 class InitializeLibraryTests(unittest.TestCase):
@@ -101,28 +101,37 @@ class CatalogMutationTests(unittest.TestCase):
             music_library = Library(root=root, name="Music")
             music_library.initialize()
 
-            album = music_library.create_album(
-                " Symphony No. 5 ",
-                " Ludwig van Beethoven ",
-                composer=" Ludwig van Beethoven ",
-                genre=" Classical ",
-                shared_url=" https://example.com/full ",
+            reference = music_library.create_album(
+                Album(
+                    title=" Symphony No. 5 ",
+                    artist=" Ludwig van Beethoven ",
+                    composer=" Ludwig van Beethoven ",
+                    genre=" Classical ",
+                    url=" https://example.com/full ",
+                    tracks=(),
+                )
             )
 
-        self.assertEqual(album.reference, "symphony-no-5")
+            album = music_library.load_album(reference)
+
+        self.assertEqual(reference, "symphony-no-5")
         self.assertEqual(album.title, "Symphony No. 5")
         self.assertEqual(album.artist, "Ludwig van Beethoven")
         self.assertEqual(album.composer, "Ludwig van Beethoven")
         self.assertEqual(album.genre, "Classical")
-        self.assertEqual(album.track_count, 0)
+        self.assertEqual(album.tracks, ())
 
     def test_lists_albums_in_title_order_with_track_counts(self):
         with tempfile.TemporaryDirectory() as temporary_dir:
             root = Path(temporary_dir)
             music_library = Library(root=root, name="Music")
             music_library.initialize()
-            music_library.create_album("Zeta", None, genre="Classical")
-            music_library.create_album("Alpha", "Artist", genre="Pop")
+            music_library.create_album(
+                Album(title="Zeta", artist=None, genre="Classical", tracks=())
+            )
+            music_library.create_album(
+                Album(title="Alpha", artist="Artist", genre="Pop", tracks=())
+            )
 
             with sqlite3.connect(music_library.database_path) as connection:
                 album_id = connection.execute(
@@ -144,17 +153,90 @@ class CatalogMutationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_dir:
             library = Library(root=Path(temporary_dir), name="Music")
             library.initialize()
-            library.create_album("Album", "Artist", genre="Pop")
+            library.create_album(Album(title="Album", artist="Artist", genre="Pop", tracks=()))
 
             with self.assertRaisesRegex(LibraryError, "already exists"):
-                library.create_album("Album", "Other Artist", genre="Pop")
+                library.create_album(
+                    Album(title="Album", artist="Other Artist", genre="Pop", tracks=())
+                )
+
+    def test_creates_complete_album_from_model(self):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            library = Library(root=Path(temporary_dir), name="Music")
+            library.initialize()
+            album = Album(
+                title="Imported Album",
+                artist="Artist",
+                composer="Composer",
+                genre="Classical",
+                url="https://example.com/recording",
+                tracks=(
+                    AlbumTrack(
+                        title="Opening",
+                        start_ms=1_000,
+                        end_ms=5_000,
+                        chapters=(Chapter(1_000, "Intro"),),
+                    ),
+                ),
+            )
+
+            reference = library.create_album(album)
+            loaded = library.load_album(reference)
+
+        self.assertEqual(reference, "imported-album")
+        self.assertEqual(loaded.title, "Imported Album")
+        self.assertEqual(loaded.tracks[0].url, None)
+        self.assertEqual(loaded.tracks[0].chapters, (Chapter(1_000, "Intro"),))
+
+    def test_overwrite_replaces_existing_album_graph(self):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            library = Library(root=Path(temporary_dir), name="Music")
+            library.initialize()
+            library.create_album(Album(title="Album", artist="Artist", genre="Pop", tracks=()))
+            library.create_track("album", title="Stale Track")
+
+            replacement = Album(
+                title="Album",
+                artist="New Artist",
+                genre="Jazz",
+                tracks=(AlbumTrack(title="Fresh Track"),),
+            )
+            library.create_album(replacement, overwrite=True)
+            loaded = library.load_album("album")
+
+        self.assertEqual(loaded.artist, "New Artist")
+        self.assertEqual(loaded.genre, "Jazz")
+        self.assertEqual([track.title for track in loaded.tracks], ["Fresh Track"])
+
+    def test_failed_overwrite_keeps_existing_album(self):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            library = Library(root=Path(temporary_dir), name="Music")
+            library.initialize()
+            library.create_album(Album(title="Album", artist="Artist", genre="Pop", tracks=()))
+            library.create_track("album", title="Existing Track")
+
+            with self.assertRaisesRegex(ValueError, "title"):
+                library.create_album(
+                    Album(
+                        title="Album",
+                        artist="New Artist",
+                        genre="Jazz",
+                        tracks=(AlbumTrack(title=""),),
+                    ),
+                    overwrite=True,
+                )
+
+            loaded = library.load_album("album")
+
+        self.assertEqual(loaded.artist, "Artist")
+        self.assertEqual([track.title for track in loaded.tracks], ["Existing Track"])
 
     def test_deletes_album_and_cascades_tracks_and_chapters(self):
         with tempfile.TemporaryDirectory() as temporary_dir:
             root = Path(temporary_dir)
             library = Library(root=root, name="Music")
             library.initialize()
-            library.create_album("Album", "Artist", genre="Pop")
+            library.create_album(Album(title="Album", artist="Artist", genre="Pop", tracks=()))
             library.create_track(
                 "album",
                 title="Track",
@@ -190,8 +272,10 @@ class CatalogMutationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_dir:
             library = Library(root=Path(temporary_dir), name="Music")
             library.initialize()
-            with self.assertRaisesRegex(LibraryError, "genre"):
-                library.create_album("Album", "Artist", genre=" ")
+            with self.assertRaisesRegex(ValueError, "genre"):
+                library.create_album(
+                    Album(title="Album", artist="Artist", genre=" ", tracks=())
+                )
 
 
 if __name__ == "__main__":

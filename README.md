@@ -172,6 +172,44 @@ album-maestro album list --library ~/Music/album-maestro
 The list command queries SQLite and displays each album’s reference, title,
 artist, genre, and current track count.
 
+Import an album specification into SQLite:
+
+```shell
+album-maestro import --json albums/beethoven-symphony-no-5.json \
+  --library ~/Music/album-maestro
+```
+
+Import every JSON file directly inside a directory:
+
+```shell
+album-maestro import --directory albums \
+  --library ~/Music/album-maestro
+```
+
+Import validates each file against the packaged album schema. By default,
+existing album references are rejected. Pass `--overwrite` to replace an
+existing album, including all of its tracks and chapters. Downloaded audio
+files are not changed.
+
+Export one album back to a JSON specification:
+
+```shell
+album-maestro export beethoven-symphony-no-5 \
+  --json beethoven-symphony-no-5.json \
+  --library ~/Music/album-maestro
+```
+
+Export every album to one file per album:
+
+```shell
+album-maestro export --all --directory albums \
+  --library ~/Music/album-maestro
+```
+
+Export preserves album-level defaults and track-level overrides so the JSON
+can be edited and imported again. Existing output files are not replaced
+unless `--overwrite` is passed.
+
 ## Album workflow
 
 Inspect the catalog and one album with:
