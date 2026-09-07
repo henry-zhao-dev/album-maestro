@@ -1,9 +1,17 @@
 # Album Maestro
 
-Album Maestro is a Python CLI that turns declarative JSON music catalogs into
-organized audio libraries. It resolves reusable artist and album metadata,
-downloads configured sources, splits long recordings into tracks, embeds tags
-and chapters, and writes the results into a predictable directory structure.
+Album Maestro is a Python CLI for turning long-form recordings into albums you
+can actually keep and play. Classical recordings are often available on
+YouTube as one long video rather than as a properly structured release. Album
+Maestro lets you organize albums, tracks, metadata, and chapter boundaries in a
+local SQLite database, then downloads and produces tagged audio files that
+work with established players such as Apple Music, VLC, and Windows Media
+Player.
+
+The goal is not to build another streaming service or music player. It is a
+free, open-source album authoring and processing tool: use any permitted media
+source, decide how it should become an album, and keep the resulting files and
+specification under your control.
 
 The code keeps catalog rules, library operations, CLI interaction,
 downloading, and audio processing separate so each area can evolve without
@@ -13,8 +21,8 @@ core logic.
 
 ## Engineering highlights
 
-- JSON Schema validation with readable, location-aware configuration errors
-- Reusable artist references and inherited album metadata
+- SQLite constraints and readable library-level validation errors
+- A local SQLite catalog with relational album and track data
 - Shared-source processing that downloads a recording once and creates
   multiple trimmed tracks from it
 - Metadata and chapter embedding through FFmpeg and ffprobe subprocesses
@@ -28,9 +36,9 @@ core logic.
 | Area | Responsibility |
 | --- | --- |
 | [`commands/`](src/album_maestro/commands/) | CLI argument handling, prompts, and user-facing output |
-| [`specs/`](src/album_maestro/specs/) | JSON loading, parsing, schema validation, and catalog storage |
+| [`database.py`](src/album_maestro/database.py) | SQLite schema and catalog persistence |
 | [`library.py`](src/album_maestro/library.py) | Library-level operations shared independently of the CLI |
-| [`models.py`](src/album_maestro/models.py) | Resolved artist, album, track, and chapter models |
+| [`models.py`](src/album_maestro/models.py) | Resolved album, track, and chapter models |
 | [`downloader.py`](src/album_maestro/downloader.py) | Source acquisition through the yt-dlp Python API |
 | [`audio.py`](src/album_maestro/audio.py) | Audio inspection and editing through FFmpeg and ffprobe |
 | [`pipeline.py`](src/album_maestro/pipeline.py) | Album download and track-creation orchestration |
@@ -38,9 +46,8 @@ core logic.
 ## Project status and responsible use
 
 Album Maestro is an early-stage CLI rather than a production service. Album
-tracks are currently authored by editing JSON; a guided editor and GUI are
-possible future work. The project is not affiliated with or endorsed by
-YouTube, yt-dlp, or FFmpeg.
+and track editing is being built incrementally through the CLI. The project is
+not affiliated with or endorsed by YouTube, yt-dlp, or FFmpeg.
 
 This repository does not include downloaded media and its example URLs are
 placeholders. Album Maestro does not grant rights to third-party content or
@@ -53,7 +60,7 @@ provide.
 
 - Python 3.11 or newer
 - [FFmpeg](https://ffmpeg.org/), including `ffmpeg` and `ffprobe` on `PATH`
-- Network access to the YouTube URLs in your album files
+- Network access to the source URLs in your album database
 
 Album Maestro uses `yt-dlp` for downloads and FFmpeg for audio inspection,
 trimming, metadata, and chapter tags. If either `ffmpeg` or `ffprobe` is not
@@ -112,9 +119,7 @@ The command creates this layout:
 
 ```text
 ~/Music/album-maestro/
-├── album-maestro.json
-├── albums/
-├── artists/
+├── album-maestro.db
 └── downloads/
 ```
 
@@ -124,150 +129,70 @@ Create an album draft interactively:
 album-maestro album create --library ~/Music/album-maestro
 ```
 
-The command asks for the title, artist, optional genre, and optional shared
-URL. It creates an album JSON file with an empty `tracks` array. Edit that file
-to add tracks before downloading.
+The command asks for the title, optional album artist, optional composer,
+genre, and optional shared URL. Leave the album artist blank for a compilation
+whose tracks have different artists. It creates an album record in SQLite.
 
-## Example configurations
-
-The [`examples/`](examples/) directory contains artist and album JSON templates.
-The URLs in those files are placeholders and must be replaced with real
-YouTube URLs before downloading.
-
-To use the examples:
+List the catalog with:
 
 ```shell
-album-maestro init ~/Music/album-maestro-example
-cp examples/artists/*.json ~/Music/album-maestro-example/artists/
-cp examples/albums/*.json ~/Music/album-maestro-example/albums/
+album-maestro album list --library ~/Music/album-maestro
 ```
 
-After replacing the placeholder URLs, download one album or the entire library:
+## SQLite catalog
+
+Album Maestro stores the catalog in `album-maestro.db`. The database is the
+single source of truth for album and track metadata; there is no JSON catalog
+to edit or keep synchronized.
+
+Create an album through the CLI:
 
 ```shell
-album-maestro album download beethoven-symphony-no-5 \
-  --library ~/Music/album-maestro-example
-album-maestro album download --all --library ~/Music/album-maestro-example
+album-maestro album create --library ~/Music/album-maestro
 ```
 
-## Artist files
+The album fields are plain text:
 
-An artist file defines reusable metadata. Its filename without `.json` is the
-canonical artist reference used by album files:
+- `artist` is the default artist and the value used for the output
+  `album_artist` tag.
+- `composer` is an independent optional credit.
+- `genre` is explicit and required.
+- `url` is the default source URL.
 
-```text
-artists/beethoven.json
+Track-level artist, composer, genre, URL, timestamps, and chapters will be
+managed through the database-backed editing workflow as those commands are
+implemented.
+
+List the catalog:
+
+```shell
+album-maestro album list --library ~/Music/album-maestro
 ```
 
-```json
-{
-  "name": "Ludwig van Beethoven",
-  "default_genre": "Classical"
-}
+The list command queries SQLite and displays each album’s reference, title,
+artist, genre, and current track count.
+
+## Album workflow
+
+Inspect the catalog and one album with:
+
+```shell
+album-maestro album list --library ~/Music/album-maestro
+album-maestro album search --artist Beethoven --library ~/Music/album-maestro
+album-maestro album show beethoven-symphony-no-5 \
+  --library ~/Music/album-maestro
 ```
 
-The reference is a stable configuration ID, while `name` is the display value
-written to audio metadata. `default_genre` is used when an album does not
-provide its own genre.
+Edit album metadata and manage tracks interactively:
 
-When creating an album, Album Maestro matches the entered artist name against
-existing display names without regard to case. If several artists match, it
-lists them and asks you to select one. If no artist matches, it creates a new
-artist file using the entered name. A genre entered for a new artist becomes
-that artist's default genre.
-
-## Album files
-
-An album file requires `title`, `artist`, and at least one track. The album
-artist must reference an existing file in `artists/`:
-
-```json
-{
-  "title": "Symphony No. 5",
-  "artist": "beethoven",
-  "tracks": [
-    {
-      "title": "I. Allegro con brio",
-      "url": "https://youtu.be/replace-with-recording"
-    }
-  ]
-}
+```shell
+album-maestro album edit beethoven-symphony-no-5 \
+  --library ~/Music/album-maestro
 ```
-
-For an existing artist, the album genre prompt is prefilled with that artist's
-default. The album stores a `genre` only when it differs from the artist's
-default; this keeps repeated metadata in the artist file.
-
-### Shared source recording
-
-Use an album-level `url` when several tracks come from one recording. `start`
-and `end` are optional timestamps and accept seconds, `mm:ss`, or `hh:mm:ss`:
-
-```json
-{
-  "title": "Symphony No. 5",
-  "artist": "beethoven",
-  "url": "https://youtu.be/replace-with-full-recording",
-  "tracks": [
-    {
-      "title": "I. Allegro con brio",
-      "start": "0:04",
-      "end": "8:20"
-    },
-    {
-      "title": "II. Andante con moto",
-      "start": "8:30",
-      "end": "19:15"
-    }
-  ]
-}
-```
-
-When an album does not have a shared URL, every track must provide its own
-`url`. A track may also provide an `artist` reference to override the album
-artist, which is useful for compilations:
-
-```json
-{
-  "title": "Classical Favorites",
-  "artist": "various-artists",
-  "tracks": [
-    {
-      "title": "Symphony No. 5",
-      "artist": "beethoven",
-      "url": "https://youtu.be/replace-with-beethoven-recording"
-    },
-    {
-      "title": "Eine kleine Nachtmusik",
-      "artist": "mozart",
-      "url": "https://youtu.be/replace-with-mozart-recording"
-    }
-  ]
-}
-```
-
-Tracks may include chapter markers. Each chapter requires a `start` timestamp;
-the title is optional and defaults to `Chapter 1`, `Chapter 2`, and so on:
-
-```json
-{
-  "title": "Movement",
-  "url": "https://youtu.be/replace-with-recording",
-  "chapters": [
-    {"start": "0:00", "title": "Introduction"},
-    {"start": "1:30", "title": "Main theme"}
-  ]
-}
-```
-
-JSON is validated when an album is loaded. The schema rejects unknown fields,
-invalid references, missing required values, and malformed timestamps. An album
-draft created by `album create` intentionally has no tracks yet, so it must be
-edited before it can be downloaded.
 
 ## Download albums
 
-Download one album by its reference (the album filename without `.json`):
+Download one album by its reference:
 
 ```shell
 album-maestro album download beethoven-symphony-no-5 \
@@ -305,13 +230,6 @@ ffmpeg -version
 ffprobe -version
 ```
 
-### Album validation errors
-
-Check the filename references and JSON fields against the examples and schemas
-in [`src/album_maestro/schemas/`](src/album_maestro/schemas/). The most common issue
-is forgetting to add a `tracks` entry or a track `url` when no album-level URL
-is present.
-
 ### Existing files are not replaced
 
 This is the default safety behavior. Use `--overwrite` when you intentionally
@@ -319,9 +237,8 @@ want to replace existing output files.
 
 ## Current limitations
 
-- Track editing requires manual JSON changes.
-- There is not yet a dedicated `album validate`, `list`, or `show` command.
-- Downloads depend on the current behavior and availability of YouTube and
+- Album and track editing is interactive; batch editing is future work.
+- Downloads depend on the availability and terms of the selected source and
   `yt-dlp`.
 
 ## Third-party software

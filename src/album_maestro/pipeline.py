@@ -26,7 +26,10 @@ def download_album(
     started_at = time.monotonic()
     logger.info('Downloading album "%s" (%s tracks)', album.title, len(album.tracks))
 
-    outputs = _download_tracks(album.requests(), output_dir, overwrite)
+    # Resolve album defaults and track overrides before media work begins.
+    # This also applies the Various Artists fallback for compilations.
+    tracks = album.requests()
+    outputs = _download_tracks(tracks, output_dir, overwrite)
 
     message = 'Finished album "%s" in %.1fs (%s/%s tracks created)'
     log = logger.info if len(outputs) == len(album.tracks) else logger.warning

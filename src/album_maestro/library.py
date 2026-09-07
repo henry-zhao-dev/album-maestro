@@ -1,21 +1,19 @@
-"""Creation and representation of a declarative music library."""
+"""Application-level operations for an SQLite music library."""
 
-import json
-from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
-from album_maestro import specs
-from album_maestro.models import Album, Artist
+from album_maestro import database
+from album_maestro.models import Album, AlbumSummary, Chapter
 
 
 class LibraryError(ValueError):
-    """Raised when a music library cannot be created or loaded."""
+    """Raised when a music library cannot be created or changed."""
 
 
 @dataclass(frozen=True)
 class Library:
-    """A music library rooted at a fixed catalog directory layout."""
+    """A music library rooted at a local SQLite database and output directory."""
 
     root: Path
     name: str
@@ -25,29 +23,14 @@ class Library:
 
         root = Path(self.root).expanduser().resolve()
         object.__setattr__(self, "root", root)
-
         if not self.name.strip():
             raise LibraryError("library name must not be empty")
 
-    def as_dict(self) -> dict[str, object]:
-        """Return the portable JSON representation stored in the manifest."""
-
-        return {
-            "kind": "library",
-            "name": self.name,
-        }
-
     @property
-    def albums_dir(self) -> Path:
-        """Return the directory containing album declarations."""
+    def database_path(self) -> Path:
+        """Return the SQLite database containing the catalog."""
 
-        return self.root / "albums"
-
-    @property
-    def artists_dir(self) -> Path:
-        """Return the directory containing artist declarations."""
-
-        return self.root / "artists"
+        return self.root / "album-maestro.db"
 
     @property
     def downloads_dir(self) -> Path:
@@ -55,198 +38,205 @@ class Library:
 
         return self.root / "downloads"
 
-    @property
-    def manifest(self) -> Path:
-        """Return the library manifest path."""
-
-        return self.root / "album-maestro.json"
-
     def album_references(self) -> list[str]:
-        """Return every album reference in filename order."""
+        """Return every album reference in database order."""
 
-        return [path.stem for path in sorted(self.albums_dir.glob("*.json"))]
+        return [album.reference for album in self.list_albums()]
 
-    def artist_references(self) -> list[str]:
-        """Return every artist reference in filename order."""
+    def list_albums(self) -> list[AlbumSummary]:
+        """Return album summaries stored in SQLite."""
 
-        return [path.stem for path in sorted(self.artists_dir.glob("*.json"))]
+        try:
+            return database.list_albums(self.database_path)
+        except database.DatabaseError as error:
+            raise LibraryError(str(error)) from error
+
+    def search_albums(
+        self,
+        *,
+        title: str | None = None,
+        artist: str | None = None,
+        composer: str | None = None,
+        genre: str | None = None,
+    ) -> list[AlbumSummary]:
+        """Search album metadata using case-insensitive substrings."""
+
+        try:
+            return database.search_albums(
+                self.database_path,
+                title=title,
+                artist=artist,
+                composer=composer,
+                genre=genre,
+            )
+        except database.DatabaseError as error:
+            raise LibraryError(str(error)) from error
 
     def load_album(self, reference: str) -> Album:
-        """Load an album and resolve its artist references."""
-
-        filename = _catalog_filename(reference, label="album")
-        return specs.load_album(self.albums_dir / filename, self.artists_dir)
-
-    def load_artist(self, reference: str) -> Artist:
-        """Load an artist by its catalog reference."""
-
-        filename = _catalog_filename(reference, label="artist")
-        return specs.load_artist(self.artists_dir / filename)
-
-    def create_artist(self, name: str, default_genre: str | None = None) -> str:
-        """Create an artist declaration and return its canonical reference.
-
-        Blank optional genres are omitted from the declaration.
-        """
-
-        name = name.strip()
-        try:
-            reference = specs.reference_from_text(name, label="artist name")
-        except ValueError as error:
-            raise LibraryError(str(error)) from error
-
-        artist_path = self.artists_dir / f"{reference}.json"
-        if artist_path.exists():
-            raise LibraryError(f"artist reference already exists: {reference}")
-
-        artist_data: dict[str, object] = {"name": name}
-        genre = _optional_text(default_genre)
-        if genre:
-            artist_data["default_genre"] = genre
-        try:
-            specs.write_json(artist_path, artist_data)
-        except specs.SpecError as error:
-            raise LibraryError(str(error)) from error
-        return reference
-
-    def update_artist_default_genre(self, reference: str, genre: str) -> None:
-        """Set the default genre on an existing artist declaration."""
-
-        genre = genre.strip()
-        if not genre:
-            raise LibraryError("artist default genre must not be empty")
+        """Load one album, its tracks, and its chapters from SQLite."""
 
         try:
-            filename = _catalog_filename(reference, label="artist")
-            specs.set_json_fields(
-                self.artists_dir / filename,
-                {"default_genre": genre},
-                label="artist",
-            )
-        except specs.SpecError as error:
+            return database.get_album(self.database_path, reference)
+        except database.DatabaseError as error:
             raise LibraryError(str(error)) from error
 
     def create_album(
         self,
         title: str,
-        artist_reference: str,
+        artist: str | None,
         *,
-        genre: str | None = None,
+        composer: str | None = None,
+        genre: str,
         shared_url: str | None = None,
-    ) -> Path:
-        """Create an empty album declaration and return its path.
-
-        A genre matching the artist's default is omitted as redundant. Blank
-        optional values are omitted from the declaration.
-        """
+    ) -> AlbumSummary:
+        """Create an album row in the SQLite catalog."""
 
         title = title.strip()
-        try:
-            reference = specs.reference_from_text(title, label="album title")
-            artist_filename = _catalog_filename(artist_reference, label="artist")
-            artist = specs.load_artist(self.artists_dir / artist_filename)
-        except ValueError as error:
-            raise LibraryError(str(error)) from error
-
-        album_path = self.albums_dir / f"{reference}.json"
-        if album_path.exists():
-            raise LibraryError(f"album already exists: {album_path}")
-
-        album_data: dict[str, object] = {
-            "title": title,
-            "artist": artist_filename.removesuffix(".json"),
-        }
-        genre = _optional_text(genre)
-        if genre and genre != artist.default_genre:
-            album_data["genre"] = genre
+        artist = _optional_text(artist)
+        composer = _optional_text(composer)
+        genre = genre.strip()
         shared_url = _optional_text(shared_url)
-        if shared_url:
-            album_data["url"] = shared_url
-        album_data["tracks"] = []
+        if not title:
+            raise LibraryError("album title must not be empty")
+        if not genre:
+            raise LibraryError("album genre must not be empty")
 
         try:
-            specs.write_json(album_path, album_data)
-        except specs.SpecError as error:
+            reference = database.reference_from_text(title, label="album title")
+            return database.create_album(
+                self.database_path,
+                reference=reference,
+                title=title,
+                artist=artist,
+                composer=composer,
+                genre=genre,
+                url=shared_url,
+            )
+        except database.DatabaseError as error:
             raise LibraryError(str(error)) from error
-        return album_path
 
-    def artist_matches(self, name: str) -> list[tuple[str, Artist]]:
-        """Return case-insensitive substring matches as reference/artist pairs."""
+    def update_album(self, reference: str, **fields: str | None) -> None:
+        """Update album metadata in the SQLite catalog."""
 
-        name = name.strip()
-        if not name:
-            raise LibraryError("artist name must not be empty")
+        normalized = {
+            key: _required_text(value, key)
+            if key in {"title", "genre"}
+            else _optional_text(value)
+            for key, value in fields.items()
+        }
+        try:
+            database.update_album(self.database_path, reference, **normalized)
+        except database.DatabaseError as error:
+            raise LibraryError(str(error)) from error
 
-        query = name.casefold()
-        matches: list[tuple[str, Artist]] = []
-        for reference in self.artist_references():
-            artist = self.load_artist(reference)
-            if query in artist.name.casefold():
-                matches.append((reference, artist))
+    def create_track(
+        self,
+        reference: str,
+        *,
+        title: str,
+        artist: str | None = None,
+        composer: str | None = None,
+        genre: str | None = None,
+        url: str | None = None,
+        start_ms: int | None = None,
+        end_ms: int | None = None,
+        chapters: tuple[Chapter, ...] = (),
+    ) -> int:
+        """Append a track to an album and return its one-based position."""
 
-        return matches
+        title = title.strip()
+        if not title:
+            raise LibraryError("track title must not be empty")
+        if start_ms is not None and end_ms is not None and end_ms <= start_ms:
+            raise LibraryError("track end must be later than track start")
+        try:
+            return database.create_track(
+                self.database_path,
+                reference,
+                title=title,
+                artist=_optional_text(artist),
+                composer=_optional_text(composer),
+                genre=_optional_text(genre),
+                url=_optional_text(url),
+                start_ms=start_ms,
+                end_ms=end_ms,
+                chapters=chapters,
+            )
+        except database.DatabaseError as error:
+            raise LibraryError(str(error)) from error
+
+    def update_track(
+        self, reference: str, position: int, **fields: str | int | None
+    ) -> None:
+        """Update one track's metadata or time range."""
+
+        normalized = {
+            key: _optional_text(value) if isinstance(value, str) else value
+            for key, value in fields.items()
+        }
+        try:
+            database.update_track(
+                self.database_path, reference, position, **normalized
+            )
+        except database.DatabaseError as error:
+            raise LibraryError(str(error)) from error
+
+    def delete_track(self, reference: str, position: int) -> None:
+        """Delete one track from an album."""
+
+        try:
+            database.delete_track(self.database_path, reference, position)
+        except database.DatabaseError as error:
+            raise LibraryError(str(error)) from error
 
     def initialize(self) -> Path:
-        """Create the library directories and manifest."""
+        """Create the library directories and SQLite database."""
 
-        if self.manifest.exists():
-            raise LibraryError(f"{self.manifest} already exists")
+        if self.database_path.exists():
+            raise LibraryError(f"{self.database_path} already exists")
 
         self.root.mkdir(parents=True, exist_ok=True)
-        for directory in (self.albums_dir, self.artists_dir, self.downloads_dir):
-            directory.mkdir(parents=True, exist_ok=True)
-
-        self.manifest.write_text(json.dumps(self.as_dict(), indent=2), encoding="utf-8")
-        return self.manifest
+        self.downloads_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            return database.initialize(self.database_path, self.name)
+        except database.DatabaseError as error:
+            raise LibraryError(str(error)) from error
 
     def validate(self) -> None:
-        """Verify that the fixed library directory structure exists."""
+        """Verify that the database and output directory exist."""
 
-        directories = {
-            "albums": self.albums_dir,
-            "artists": self.artists_dir,
-            "downloads": self.downloads_dir,
-        }
-        for label, directory in directories.items():
-            if not directory.is_dir():
-                raise LibraryError(f"{label} directory does not exist: {directory}")
+        if not self.database_path.is_file():
+            raise LibraryError(f"database does not exist: {self.database_path}")
+        if not self.downloads_dir.is_dir():
+            raise LibraryError(
+                f"downloads directory does not exist: {self.downloads_dir}"
+            )
 
     @classmethod
     def load(cls, root: str | Path = ".") -> "Library":
-        """Load a library from its manifest."""
+        """Load a library from its SQLite database."""
 
         resolved_root = Path(root).expanduser().resolve()
-        manifest = resolved_root / "album-maestro.json"
-
         try:
-            data = specs.load_json(manifest, label="library manifest")
-        except specs.SpecError as error:
+            name = database.load_name(resolved_root / "album-maestro.db")
+        except database.DatabaseError as error:
             raise LibraryError(str(error)) from error
 
-        if not isinstance(data, Mapping) or data.get("kind") != "library":
-            raise LibraryError("album-maestro.json is not a library manifest")
-
-        music_library = cls(
-            root=resolved_root,
-            name=specs.required_string(data, "name", LibraryError),
-        )
+        music_library = cls(root=resolved_root, name=name)
         music_library.validate()
         return music_library
 
 
-def _catalog_filename(reference: str, *, label: str) -> str:
-    """Validate a catalog reference and return its JSON filename."""
-
-    path = Path(reference)
-    if path.name != reference or reference in {"", ".", ".."}:
-        raise specs.SpecError(f"{label} reference must be a filename, not a path")
-
-    reference_without_ext = reference.removesuffix(".json")
-    canonical_reference = specs.catalog_reference(reference_without_ext, label=label)
-    return f"{canonical_reference}.json"
-
-
 def _optional_text(value: str | None) -> str | None:
-    """Normalize an optional text value to ``None`` when blank."""
+    """Normalize optional text to ``None`` when blank."""
 
     return value.strip() if value and value.strip() else None
+
+
+def _required_text(value: str | None, label: str) -> str:
+    """Normalize required text or raise a library error."""
+
+    normalized = _optional_text(value)
+    if normalized is None:
+        raise LibraryError(f"album {label} must not be empty")
+    return normalized

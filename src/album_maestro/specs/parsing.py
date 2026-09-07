@@ -1,4 +1,4 @@
-"""Parse reusable values from artist and album specifications."""
+"""Parse values from declarative album specifications."""
 
 import math
 from collections.abc import Mapping
@@ -10,6 +10,7 @@ __all__ = [
     "optional_string",
     "optional_timestamp",
     "required_string",
+    "parse_timestamp"
 ]
 
 
@@ -39,10 +40,10 @@ def optional_timestamp(data: Mapping[str, Any], key: str) -> int | None:
     """Read an optional timestamp field as milliseconds."""
 
     value = optional_string(data, key)
-    return _parse_timestamp(value) if value is not None else None
+    return parse_timestamp(value) if value is not None else None
 
 
-def _parse_timestamp(value: str) -> int:
+def parse_timestamp(value: str) -> int:
     """Convert ``hh:mm:ss``, ``mm:ss``, or seconds into milliseconds."""
 
     parts = value.split(":")

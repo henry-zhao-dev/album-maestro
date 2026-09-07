@@ -4,15 +4,20 @@
   "title": "Album Maestro album",
   "type": "object",
   "additionalProperties": false,
-  "required": ["title", "artist", "tracks"],
+  "required": ["title", "genre", "tracks"],
   "properties": {
     "title": { "type": "string", "minLength": 1 },
     "artist": {
-      "type": "string",
-      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
-      "description": "Canonical album artist reference inherited by tracks without an artist."
+      "type": ["string", "null"],
+      "minLength": 1,
+      "description": "Optional album artist default inherited by tracks without an artist. Null is used for compilations."
     },
     "genre": { "type": "string", "minLength": 1 },
+    "composer": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "description": "Optional composer credit inherited by tracks without a track-level composer."
+    },
     "url": {
       "type": "string",
       "minLength": 1,
@@ -55,11 +60,21 @@
       "properties": {
         "title": { "type": "string", "minLength": 1 },
         "artist": {
-          "type": "string",
-          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
-          "description": "Optional canonical track artist reference; inherits the album artist."
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Optional track artist override; inherits the album artist or Various Artists when absent."
         },
         "url": { "type": "string", "minLength": 1 },
+        "composer": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Optional composer override for this track."
+        },
+        "genre": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Optional genre override for this track."
+        },
         "start": { "$ref": "#/$defs/timestamp" },
         "end": { "$ref": "#/$defs/timestamp" },
         "chapters": {
