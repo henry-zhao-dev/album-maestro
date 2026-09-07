@@ -22,7 +22,7 @@ class HelpTests(unittest.TestCase):
     def test_help_after_command_is_handled_by_command_parser(self):
         for arguments, usage, detail in (
             (["init", "-h"], "usage: album-maestro init", "--name"),
-            (["album", "-h"], "usage: album-maestro album", "download"),
+            (["album", "-h"], "usage: album-maestro album", "delete"),
         ):
             with self.subTest(command=arguments[0]):
                 output = StringIO()
@@ -144,6 +144,34 @@ class AlbumCommandTests(unittest.TestCase):
         self.assertIn("Artist:       Ludwig van Beethoven", output.getvalue())
         self.assertIn("First", output.getvalue())
         self.assertIn("Second", output.getvalue())
+
+    def test_delete_removes_album_from_sqlite(self):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir) / "library"
+            _create_album_library(root)
+
+            result = main(["album", "delete", "symphony", "--library", str(root)])
+
+            self.assertEqual(result, 0)
+            self.assertEqual(Library.load(root).list_albums(), [])
+            with sqlite3.connect(root / "album-maestro.db") as connection:
+                self.assertEqual(
+                    connection.execute("SELECT COUNT(*) FROM tracks").fetchone(),
+                    (0,),
+                )
+
+    def test_delete_returns_failure_for_unknown_album(self):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir) / "library"
+            _create_album_library(root)
+
+            result = main(["album", "delete", "missing", "--library", str(root)])
+
+            self.assertEqual(result, 1)
+            self.assertEqual(
+                [album.reference for album in Library.load(root).list_albums()],
+                ["symphony"],
+            )
 
     @patch(
         "builtins.input",

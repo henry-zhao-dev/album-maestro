@@ -223,6 +223,20 @@ def update_album(path: str | Path, reference: str, **fields: Any) -> None:
     })
 
 
+def delete_album(path: str | Path, reference: str) -> None:
+    """Delete one album."""
+
+    try:
+        with sqlite3.connect(path) as connection:
+            _configure(connection)
+            # Use album_id to catch exceptions where reference does not exist
+            # in the albums table.
+            album_id = _album_id(connection, reference)
+            connection.execute("DELETE FROM albums WHERE id = ?", (album_id,))
+    except (OSError, sqlite3.Error) as error:
+        raise DatabaseError(str(error)) from error
+
+
 def create_track(
     path: str | Path,
     reference: str,

@@ -211,6 +211,39 @@ class EditCommand(Command):
                 return 1
 
 
+class DeleteCommand(Command):
+    """Implement ``album-maestro album delete`` command."""
+
+    name = "delete"
+    help = "Delete an album."
+
+    def configure(self, parser: argparse.ArgumentParser) -> None:
+        parser.add_argument("reference", metavar="ALBUM")
+        parser.add_argument(
+            "--library",
+            default=".",
+            metavar="DIRECTORY",
+            help="Library directory (default: current directory)",
+        )
+
+    def run(self, args: argparse.Namespace) -> int:
+        try:
+            music_library = Library.load(args.library)
+        except LibraryError as error:
+            logger.error("Cannot load library: %s", error)
+            return 1
+
+        reference = args.reference
+        try:
+            music_library.delete_album(reference)
+            logger.info("Deleted album: %s", reference)
+        except (LibraryError, ValueError) as error:
+            logger.error("Cannot delete album: %s", error)
+            return 1
+
+        return 0
+
+
 class DownloadCommand(Command):
     """Implement ``album-maestro album download``."""
 
@@ -327,6 +360,7 @@ class AlbumCommand(Command):
             SearchCommand(),
             ShowCommand(),
             EditCommand(),
+            DeleteCommand(),
             DownloadCommand(),
         )
     }

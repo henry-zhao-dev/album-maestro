@@ -190,6 +190,16 @@ album-maestro album edit beethoven-symphony-no-5 \
   --library ~/Music/album-maestro
 ```
 
+Delete an album from the catalog:
+
+```shell
+album-maestro album delete beethoven-symphony-no-5 \
+  --library ~/Music/album-maestro
+```
+
+This removes the album, its tracks, and chapters from SQLite. Existing
+downloaded audio files are not removed.
+
 ## Download albums
 
 Download one album by its reference:
