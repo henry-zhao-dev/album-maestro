@@ -36,10 +36,10 @@ class InitCommand(Command):
 
         try:
             music_library = Library(root=root, name=name)
-            manifest = music_library.initialize()
+            database_path = music_library.initialize()
         except LibraryError as error:
             logger.error("Cannot initialize library: %s", error)
             return 1
 
-        print(f"Created Album Maestro library at {manifest.parent}")
+        print(f"Created Album Maestro library at {database_path.parent}")
         return 0

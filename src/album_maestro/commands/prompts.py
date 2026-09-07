@@ -9,6 +9,13 @@ def text(label: str, default: str | None = None) -> str:
     return response or default or ""
 
 
+def override_text(label: str, default: str | None = None) -> str:
+    """Prompt for an optional override, preserving blank as no override."""
+
+    default_label = f" [{default}]" if default is not None else ""
+    return input(f"{label}{default_label}: ").strip()
+
+
 def number(label: str, default: int | None = None) -> int:
     """Prompt for an integer, requiring one when no default is provided."""
 

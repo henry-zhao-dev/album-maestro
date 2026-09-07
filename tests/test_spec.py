@@ -2,7 +2,7 @@ import unittest
 
 from album_maestro.specs import SpecError
 from album_maestro.specs.catalog import _parse_album
-from album_maestro.specs.parsing import _parse_timestamp
+from album_maestro.specs.parsing import parse_timestamp
 
 
 class AlbumTests(unittest.TestCase):
@@ -149,13 +149,13 @@ class AlbumTests(unittest.TestCase):
 
 class TimestampTests(unittest.TestCase):
     def test_supported_timestamp_forms(self):
-        self.assertEqual(_parse_timestamp("1.25"), 1_250)
-        self.assertEqual(_parse_timestamp("02:03.5"), 123_500)
-        self.assertEqual(_parse_timestamp("1:02:03"), 3_723_000)
+        self.assertEqual(parse_timestamp("1.25"), 1_250)
+        self.assertEqual(parse_timestamp("02:03.5"), 123_500)
+        self.assertEqual(parse_timestamp("1:02:03"), 3_723_000)
 
     def test_rejects_non_finite_timestamp(self):
         with self.assertRaises(SpecError):
-            _parse_timestamp("nan")
+            parse_timestamp("nan")
 
 
 if __name__ == "__main__":

@@ -7,6 +7,19 @@ VARIOUS_ARTISTS = "Various Artists"
 
 
 @dataclass(frozen=True)
+class AlbumSummary:
+    """The catalog fields needed to display an album in a list."""
+
+    id: int
+    reference: str
+    title: str
+    artist: str | None
+    composer: str | None
+    genre: str
+    track_count: int
+
+
+@dataclass(frozen=True)
 class Chapter:
     """A chapter marker within one output track."""
 

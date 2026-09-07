@@ -69,5 +69,12 @@ class NumberPromptTests(unittest.TestCase):
             )
 
 
+class TextPromptTests(unittest.TestCase):
+    @patch("builtins.input", return_value="")
+    def test_override_text_keeps_blank_as_no_override(self, input_mock):
+        self.assertEqual(prompts.override_text("Track artist", "Album artist"), "")
+        input_mock.assert_called_once_with("Track artist [Album artist]: ")
+
+
 if __name__ == "__main__":
     unittest.main()

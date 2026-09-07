@@ -1,4 +1,4 @@
-import json
+import sqlite3
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
@@ -47,8 +47,11 @@ class InitCommandTests(unittest.TestCase):
             root = Path(temporary_dir) / "collection"
             result = main(["init", str(root)])
             self.assertEqual(result, 0)
-            config = json.loads((root / "album-maestro.json").read_text(encoding="utf-8"))
-            self.assertEqual(config["name"], "collection")
+            with sqlite3.connect(root / "album-maestro.db") as connection:
+                self.assertEqual(
+                    connection.execute("SELECT name FROM library").fetchone(),
+                    ("collection",),
+                )
 
 
 class AlbumCommandTests(unittest.TestCase):
@@ -57,10 +60,16 @@ class AlbumCommandTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_dir:
             root = Path(temporary_dir) / "library"
             Library(root=root, name="Music").initialize()
-            result = main(["album", "create", "--library", str(root)])
-            album = json.loads((root / "albums" / "best-of-romantic-era.json").read_text(encoding="utf-8"))
+            output = StringIO()
+            with redirect_stdout(output):
+                result = main(["album", "create", "--library", str(root)])
+            with sqlite3.connect(root / "album-maestro.db") as connection:
+                album = connection.execute(
+                    "SELECT title, artist, composer, genre, url FROM albums"
+                ).fetchone()
         self.assertEqual(result, 0)
-        self.assertEqual(album, {"title": "Best of Romantic Era", "artist": None, "genre": "Classical", "tracks": []})
+        self.assertIn("Album created: best-of-romantic-era", output.getvalue())
+        self.assertEqual(album, ("Best of Romantic Era", None, None, "Classical", None))
 
     @patch("builtins.input", side_effect=("Bach Violin Partita No. 3", "Hilary Hahn", "Johann Sebastian Bach", "Baroque", "https://youtu.be/recording"))
     def test_create_writes_literal_metadata(self, input_mock):
@@ -70,15 +79,111 @@ class AlbumCommandTests(unittest.TestCase):
             output = StringIO()
             with redirect_stdout(output):
                 result = main(["album", "create", "--library", str(root)])
-            album = json.loads((root / "albums" / "bach-violin-partita-no-3.json").read_text(encoding="utf-8"))
+            with sqlite3.connect(root / "album-maestro.db") as connection:
+                album = connection.execute(
+                    "SELECT title, artist, composer, genre, url FROM albums"
+                ).fetchone()
         self.assertEqual(result, 0)
         self.assertEqual(
             input_mock.call_args_list,
             [call("Album title: "), call("Album artist (optional): "), call("Album composer (optional): "), call("Album genre: "), call("Album shared URL (optional): ")],
         )
-        self.assertEqual(album["artist"], "Hilary Hahn")
-        self.assertEqual(album["composer"], "Johann Sebastian Bach")
-        self.assertEqual(album["genre"], "Baroque")
+        self.assertEqual(
+            album,
+            (
+                "Bach Violin Partita No. 3",
+                "Hilary Hahn",
+                "Johann Sebastian Bach",
+                "Baroque",
+                "https://youtu.be/recording",
+            ),
+        )
+
+    @patch("builtins.input", side_effect=("Bach Album", "Bach", "Johann Sebastian Bach", "Classical", ""))
+    def test_list_prints_albums_from_sqlite(self, _input):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir) / "library"
+            Library(root=root, name="Music").initialize()
+            main(["album", "create", "--library", str(root)])
+            output = StringIO()
+            with redirect_stdout(output):
+                result = main(["album", "list", "--library", str(root)])
+
+        self.assertEqual(result, 0)
+        self.assertIn("REFERENCE", output.getvalue())
+        self.assertIn("bach-album", output.getvalue())
+        self.assertIn("Bach", output.getvalue())
+        self.assertIn("Classical", output.getvalue())
+        self.assertIn("0", output.getvalue())
+
+    def test_search_filters_by_artist(self):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir) / "library"
+            library = Library(root=root, name="Music")
+            library.initialize()
+            library.create_album("Beethoven Symphony", "Ludwig van Beethoven", genre="Classical")
+            library.create_album("Ocean Eyes", "Owl City", genre="Pop")
+            output = StringIO()
+            with redirect_stdout(output):
+                result = main(["album", "search", "--artist", "Beethoven", "--library", str(root)])
+
+        self.assertEqual(result, 0)
+        self.assertIn("beethoven-symphony", output.getvalue())
+        self.assertNotIn("ocean-eyes", output.getvalue())
+
+    def test_show_displays_album_and_tracks_from_sqlite(self):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir) / "library"
+            _create_album_library(root)
+            output = StringIO()
+            with redirect_stdout(output):
+                result = main(["album", "show", "symphony", "--library", str(root)])
+
+        self.assertEqual(result, 0)
+        self.assertIn("Title:        Symphony", output.getvalue())
+        self.assertIn("Artist:       Ludwig van Beethoven", output.getvalue())
+        self.assertIn("First", output.getvalue())
+        self.assertIn("Second", output.getvalue())
+
+    @patch(
+        "builtins.input",
+        side_effect=(
+            "",
+            "",
+            "",
+            "",
+            "",
+            "a",
+            "Third",
+            "",
+            "",
+            "",
+            "",
+            "2:00",
+            "3:00",
+            "d",
+        ),
+    )
+    def test_edit_adds_a_track_to_sqlite(self, _input):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir) / "library"
+            _create_album_library(root)
+            result = main(["album", "edit", "symphony", "--library", str(root)])
+            album = Library.load(root).load_album("symphony")
+
+        self.assertEqual(result, 0)
+        self.assertEqual([track.title for track in album.tracks], ["First", "Second", "Third"])
+        self.assertEqual(album.tracks[-1].start_ms, 120_000)
+        self.assertEqual(album.tracks[-1].end_ms, 180_000)
+        self.assertIsNone(album.tracks[-1].artist)
+        self.assertIsNone(album.tracks[-1].composer)
+        self.assertIsNone(album.tracks[-1].genre)
+        self.assertIsNone(album.tracks[-1].url)
+        resolved_track = album.requests()[-1]
+        self.assertEqual(resolved_track.artist, "Ludwig van Beethoven")
+        self.assertEqual(resolved_track.composer, "Ludwig van Beethoven")
+        self.assertEqual(resolved_track.genre, "Classical")
+        self.assertEqual(resolved_track.url, "https://example.com/full")
 
     @patch("builtins.input", side_effect=("No Genre Album", "Artist", "", "", ""))
     def test_create_rejects_missing_genre(self, _input):
@@ -86,7 +191,11 @@ class AlbumCommandTests(unittest.TestCase):
             root = Path(temporary_dir) / "library"
             Library(root=root, name="Music").initialize()
             result = main(["album", "create", "--library", str(root)])
-            self.assertFalse((root / "albums" / "no-genre-album.json").exists())
+            with sqlite3.connect(root / "album-maestro.db") as connection:
+                self.assertEqual(
+                    connection.execute("SELECT COUNT(*) FROM albums").fetchone(),
+                    (0,),
+                )
         self.assertEqual(result, 1)
 
     @patch("album_maestro.commands.album.pipeline.download_album")
@@ -137,22 +246,23 @@ def _create_album_library(root: Path) -> None:
 
 
 def _write_album(root: Path, reference: str, title: str) -> None:
-    (root / "albums" / f"{reference}.json").write_text(
-        json.dumps(
-            {
-                "title": title,
-                "artist": "Ludwig van Beethoven",
-                "composer": "Ludwig van Beethoven",
-                "genre": "Classical",
-                "url": "https://example.com/full",
-                "tracks": [
-                    {"title": "First", "start": "0", "end": "1:00"},
-                    {"title": "Second", "start": "1:00"},
-                ],
-            }
-        ),
-        encoding="utf-8",
+    library = Library.load(root)
+    album = library.create_album(
+        title,
+        "Ludwig van Beethoven",
+        composer="Ludwig van Beethoven",
+        genre="Classical",
+        shared_url="https://example.com/full",
     )
+    if album.reference != reference:
+        raise AssertionError(f"expected reference {reference!r}, got {album.reference!r}")
+    library.create_track(
+        reference,
+        title="First",
+        start_ms=0,
+        end_ms=60_000,
+    )
+    library.create_track(reference, title="Second", start_ms=60_000)
 
 
 if __name__ == "__main__":
