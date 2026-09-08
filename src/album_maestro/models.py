@@ -74,7 +74,7 @@ class AlbumTrack:
 
 @dataclass(frozen=True)
 class TrackRequest:
-    """A fully resolved request consumed by the download pipeline."""
+    """A fully resolved track request for source audio processing."""
 
     url: str
     title: str

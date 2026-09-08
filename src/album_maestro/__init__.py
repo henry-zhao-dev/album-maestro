@@ -1,1 +1,1 @@
-"""Build reproducible music libraries from declarative YouTube sources."""
+"""Build organized music libraries from declarative source metadata."""

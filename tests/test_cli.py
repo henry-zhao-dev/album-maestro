@@ -191,7 +191,7 @@ class AlbumCommandTests(unittest.TestCase):
             "Hilary Hahn",
             "Johann Sebastian Bach",
             "Baroque",
-            "https://youtu.be/recording",
+            "https://example.com/recording",
         ),
     )
     def test_create_writes_literal_metadata(self, input_mock):
@@ -223,7 +223,7 @@ class AlbumCommandTests(unittest.TestCase):
                 "Hilary Hahn",
                 "Johann Sebastian Bach",
                 "Baroque",
-                "https://youtu.be/recording",
+                "https://example.com/recording",
             ),
         )
 
@@ -369,6 +369,7 @@ class AlbumCommandTests(unittest.TestCase):
                     (0,),
                 )
         self.assertEqual(result, 1)
+
 
 def _create_album_library(root: Path) -> None:
     Library(root=root, name="Music").initialize()

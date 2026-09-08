@@ -89,9 +89,7 @@ class PipelineTests(unittest.TestCase):
 
             result = _create_track(track, source, destination, work_dir)
 
-        expected = (
-            destination.resolve() / "Various Artists" / "Album" / "Track.m4a"
-        )
+        expected = destination.resolve() / "Various Artists" / "Album" / "Track.m4a"
         self.assertEqual(result, expected)
         copy2.assert_called_once_with(source, work_dir / "Track.m4a")
         audio_duration_ms.assert_called_once()

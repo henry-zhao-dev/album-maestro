@@ -6,12 +6,12 @@
     {
       "title": "Symphony No. 5",
       "artist": "Ludwig van Beethoven",
-      "url": "https://youtu.be/replace-with-beethoven-recording"
+      "url": "https://example.com/replace-with-beethoven-recording"
     },
     {
       "title": "Eine kleine Nachtmusik",
       "artist": "Wolfgang Amadeus Mozart",
-      "url": "https://youtu.be/replace-with-mozart-recording"
+      "url": "https://example.com/replace-with-mozart-recording"
     }
   ]
 }
