@@ -21,9 +21,7 @@ def load_json(path: str | Path, *, label: str) -> Any:
         ) from error
 
 
-def write_json(
-    path: Path, data: dict[str, object], *, overwrite: bool = False
-) -> None:
+def write_json(path: Path, data: dict[str, object], *, overwrite: bool = False) -> None:
     """Write formatted JSON, optionally replacing an existing file."""
 
     try:

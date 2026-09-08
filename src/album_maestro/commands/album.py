@@ -226,9 +226,7 @@ class DownloadCommand(LibraryCommand):
 
     def run_library(self, library: Library, args: argparse.Namespace) -> int:
         references = (
-            library.album_references()
-            if args.all_albums
-            else args.album_references
+            library.album_references() if args.all_albums else args.album_references
         )
         return self._run_download(references, library, overwrite=args.overwrite)
 
@@ -310,7 +308,9 @@ def _print_album_table(albums: Sequence[AlbumSummary]) -> None:
         max(len(header), *(len(row[index]) for row in rows))
         for index, header in enumerate(headers)
     ]
-    print("  ".join(header.ljust(widths[index]) for index, header in enumerate(headers)))
+    print(
+        "  ".join(header.ljust(widths[index]) for index, header in enumerate(headers))
+    )
     print("  ".join("-" * width for width in widths))
     for row in rows:
         print("  ".join(value.ljust(widths[index]) for index, value in enumerate(row)))

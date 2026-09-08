@@ -11,7 +11,7 @@ __all__ = [
     "optional_string",
     "optional_timestamp",
     "required_string",
-    "parse_timestamp"
+    "parse_timestamp",
 ]
 
 

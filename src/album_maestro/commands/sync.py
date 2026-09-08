@@ -49,9 +49,7 @@ class ImportCommand(LibraryCommand):
         for json_path in json_paths:
             try:
                 album = specs.load_album(json_path)
-                reference = library.create_album(
-                    album, overwrite=args.overwrite
-                )
+                reference = library.create_album(album, overwrite=args.overwrite)
             except SpecError as error:
                 logger.error("Cannot import %s: %s", json_path, error)
                 failed = True
@@ -110,18 +108,14 @@ class ExportCommand(LibraryCommand):
 
     def run_library(self, library: Library, args: argparse.Namespace) -> int:
         references = (
-            library.album_references()
-            if args.all_albums
-            else args.album_references
+            library.album_references() if args.all_albums else args.album_references
         )
 
         if args.json:
             if len(references) != 1:
                 logger.error("--json requires exactly one album reference")
                 return 1
-            return self._export_one(
-                library, references[0], args.json, args.overwrite
-            )
+            return self._export_one(library, references[0], args.json, args.overwrite)
 
         assert args.directory is not None
         args.directory.mkdir(parents=True, exist_ok=True)

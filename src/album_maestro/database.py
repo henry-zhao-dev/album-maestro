@@ -249,9 +249,14 @@ def get_album(path: str | Path, reference: str) -> Album:
 def update_album(path: str | Path, reference: str, **fields: Any) -> None:
     """Update editable album fields by reference."""
 
-    _update_row(path, "albums", "reference", reference, fields, {
-        "title", "artist", "composer", "genre", "url"
-    })
+    _update_row(
+        path,
+        "albums",
+        "reference",
+        reference,
+        fields,
+        {"title", "artist", "composer", "genre", "url"},
+    )
 
 
 def delete_album(path: str | Path, reference: str) -> None:
@@ -321,7 +326,9 @@ def create_track(
     return position
 
 
-def update_track(path: str | Path, reference: str, position: int, **fields: Any) -> None:
+def update_track(
+    path: str | Path, reference: str, position: int, **fields: Any
+) -> None:
     """Update one track's editable fields."""
 
     try:
@@ -431,9 +438,7 @@ def _album_id(connection: sqlite3.Connection, reference: str) -> int:
     return row[0]
 
 
-def _track_id(
-    connection: sqlite3.Connection, reference: str, position: int
-) -> int:
+def _track_id(connection: sqlite3.Connection, reference: str, position: int) -> int:
     """Resolve an album track position to its primary key."""
 
     row = connection.execute(
@@ -450,9 +455,7 @@ def _track_id(
     return row[0]
 
 
-def _track_from_row(
-    connection: sqlite3.Connection, row: tuple[Any, ...]
-) -> AlbumTrack:
+def _track_from_row(connection: sqlite3.Connection, row: tuple[Any, ...]) -> AlbumTrack:
     """Convert one track row and its chapters into a domain model."""
 
     chapter_rows = connection.execute(
@@ -472,7 +475,10 @@ def _track_from_row(
         url=row[5],
         start_ms=row[6],
         end_ms=row[7],
-        chapters=tuple(Chapter(start_ms=chapter[1], title=chapter[0], end_ms=chapter[2]) for chapter in chapter_rows),
+        chapters=tuple(
+            Chapter(start_ms=chapter[1], title=chapter[0], end_ms=chapter[2])
+            for chapter in chapter_rows
+        ),
     )
 
 

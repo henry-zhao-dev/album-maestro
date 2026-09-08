@@ -8,7 +8,11 @@ from typing import Any, cast
 
 from album_maestro.models import Album, AlbumTrack, Chapter
 from album_maestro.specs.errors import SpecError
-from album_maestro.specs.parsing import optional_string, optional_timestamp, required_string
+from album_maestro.specs.parsing import (
+    optional_string,
+    optional_timestamp,
+    required_string,
+)
 from album_maestro.specs.schema import validate_album
 from album_maestro.specs.storage import load_json
 

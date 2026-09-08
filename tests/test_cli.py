@@ -62,9 +62,7 @@ class ImportCommandTests(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            result = main(
-                ["import", "--json", str(source), "--library", str(root)]
-            )
+            result = main(["import", "--json", str(source), "--library", str(root)])
             album = Library.load(root).load_album("imported-album")
 
         self.assertEqual(result, 0)
@@ -76,7 +74,9 @@ class ImportCommandTests(unittest.TestCase):
             root = Path(temporary_dir) / "library"
             Library(root=root, name="Music").initialize()
             library = Library.load(root)
-            library.create_album(Album(title="Album", artist="Old Artist", genre="Pop", tracks=()))
+            library.create_album(
+                Album(title="Album", artist="Old Artist", genre="Pop", tracks=())
+            )
             library.create_track("album", title="Stale Track")
             source_dir = Path(temporary_dir) / "albums"
             source_dir.mkdir()
@@ -116,9 +116,7 @@ class ExportCommandTests(unittest.TestCase):
                     artist="Artist",
                     genre="Classical",
                     url="https://example.com/source",
-                    tracks=(
-                        AlbumTrack(title="Opening", start_ms=1_000, end_ms=5_000),
-                    ),
+                    tracks=(AlbumTrack(title="Opening", start_ms=1_000, end_ms=5_000),),
                 )
             )
             output = Path(temporary_dir) / "album.json"
@@ -168,7 +166,9 @@ class ExportCommandTests(unittest.TestCase):
 
 
 class AlbumCommandTests(unittest.TestCase):
-    @patch("builtins.input", side_effect=("Best of Romantic Era", "", "", "Classical", ""))
+    @patch(
+        "builtins.input", side_effect=("Best of Romantic Era", "", "", "Classical", "")
+    )
     def test_create_supports_compilation_without_album_artist(self, _input):
         with tempfile.TemporaryDirectory() as temporary_dir:
             root = Path(temporary_dir) / "library"
@@ -184,7 +184,16 @@ class AlbumCommandTests(unittest.TestCase):
         self.assertIn("Album created: best-of-romantic-era", output.getvalue())
         self.assertEqual(album, ("Best of Romantic Era", None, None, "Classical", None))
 
-    @patch("builtins.input", side_effect=("Bach Violin Partita No. 3", "Hilary Hahn", "Johann Sebastian Bach", "Baroque", "https://youtu.be/recording"))
+    @patch(
+        "builtins.input",
+        side_effect=(
+            "Bach Violin Partita No. 3",
+            "Hilary Hahn",
+            "Johann Sebastian Bach",
+            "Baroque",
+            "https://youtu.be/recording",
+        ),
+    )
     def test_create_writes_literal_metadata(self, input_mock):
         with tempfile.TemporaryDirectory() as temporary_dir:
             root = Path(temporary_dir) / "library"
@@ -199,7 +208,13 @@ class AlbumCommandTests(unittest.TestCase):
         self.assertEqual(result, 0)
         self.assertEqual(
             input_mock.call_args_list,
-            [call("Album title: "), call("Album artist (optional): "), call("Album composer (optional): "), call("Album genre: "), call("Album shared URL (optional): ")],
+            [
+                call("Album title: "),
+                call("Album artist (optional): "),
+                call("Album composer (optional): "),
+                call("Album genre: "),
+                call("Album shared URL (optional): "),
+            ],
         )
         self.assertEqual(
             album,
@@ -212,7 +227,10 @@ class AlbumCommandTests(unittest.TestCase):
             ),
         )
 
-    @patch("builtins.input", side_effect=("Bach Album", "Bach", "Johann Sebastian Bach", "Classical", ""))
+    @patch(
+        "builtins.input",
+        side_effect=("Bach Album", "Bach", "Johann Sebastian Bach", "Classical", ""),
+    )
     def test_list_prints_albums_from_sqlite(self, _input):
         with tempfile.TemporaryDirectory() as temporary_dir:
             root = Path(temporary_dir) / "library"
@@ -234,11 +252,22 @@ class AlbumCommandTests(unittest.TestCase):
             root = Path(temporary_dir) / "library"
             library = Library(root=root, name="Music")
             library.initialize()
-            library.create_album(Album(title="Beethoven Symphony", artist="Ludwig van Beethoven", genre="Classical", tracks=()))
-            library.create_album(Album(title="Ocean Eyes", artist="Owl City", genre="Pop", tracks=()))
+            library.create_album(
+                Album(
+                    title="Beethoven Symphony",
+                    artist="Ludwig van Beethoven",
+                    genre="Classical",
+                    tracks=(),
+                )
+            )
+            library.create_album(
+                Album(title="Ocean Eyes", artist="Owl City", genre="Pop", tracks=())
+            )
             output = StringIO()
             with redirect_stdout(output):
-                result = main(["search", "--artist", "Beethoven", "--library", str(root)])
+                result = main(
+                    ["search", "--artist", "Beethoven", "--library", str(root)]
+                )
 
         self.assertEqual(result, 0)
         self.assertIn("beethoven-symphony", output.getvalue())
@@ -313,7 +342,9 @@ class AlbumCommandTests(unittest.TestCase):
             album = Library.load(root).load_album("symphony")
 
         self.assertEqual(result, 0)
-        self.assertEqual([track.title for track in album.tracks], ["First", "Second", "Third"])
+        self.assertEqual(
+            [track.title for track in album.tracks], ["First", "Second", "Third"]
+        )
         self.assertEqual(album.tracks[-1].start_ms, 120_000)
         self.assertEqual(album.tracks[-1].end_ms, 180_000)
         self.assertIsNone(album.tracks[-1].artist)
@@ -355,11 +386,15 @@ class AlbumCommandTests(unittest.TestCase):
 
     @patch("album_maestro.commands.album.pipeline.download_album")
     @patch("album_maestro.commands.album.prompts.confirm", return_value=False)
-    def test_download_skips_existing_tracks_when_overwrite_declined(self, confirm, download_album):
+    def test_download_skips_existing_tracks_when_overwrite_declined(
+        self, confirm, download_album
+    ):
         with tempfile.TemporaryDirectory() as temporary_dir:
             root = Path(temporary_dir) / "library"
             _create_album_library(root)
-            existing = root / "downloads" / "Ludwig van Beethoven" / "Symphony" / "First.m4a"
+            existing = (
+                root / "downloads" / "Ludwig van Beethoven" / "Symphony" / "First.m4a"
+            )
             existing.parent.mkdir(parents=True)
             existing.touch()
             download_album.return_value = [existing, Path("second.m4a")]
@@ -378,7 +413,10 @@ class AlbumCommandTests(unittest.TestCase):
             result = main(["download", "--all", "--library", str(root)])
         self.assertEqual(result, 0)
         self.assertEqual(download_album.call_count, 2)
-        self.assertEqual([call.args[0].title for call in download_album.call_args_list], ["Concerto", "Symphony"])
+        self.assertEqual(
+            [call.args[0].title for call in download_album.call_args_list],
+            ["Concerto", "Symphony"],
+        )
 
 
 def _create_album_library(root: Path) -> None:

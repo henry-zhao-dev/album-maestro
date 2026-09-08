@@ -70,7 +70,9 @@ class AlbumTests(unittest.TestCase):
 
         tracks = album.requests()
 
-        self.assertEqual(album.resolved_album_artist(), "Frankfurt Radio Symphony Orchestra")
+        self.assertEqual(
+            album.resolved_album_artist(), "Frankfurt Radio Symphony Orchestra"
+        )
         self.assertEqual(tracks[0].url, "https://example.com/full")
         self.assertEqual(tracks[0].artist, "Frankfurt Radio Symphony Orchestra")
         self.assertEqual(tracks[0].composer, "Ludwig van Beethoven")
@@ -99,8 +101,12 @@ class AlbumTests(unittest.TestCase):
 
         tracks = album.requests()
 
-        self.assertEqual([track.artist for track in tracks], ["Johannes Brahms", "Franz Schubert"])
-        self.assertEqual([track.album_artist for track in tracks], ["Various Artists"] * 2)
+        self.assertEqual(
+            [track.artist for track in tracks], ["Johannes Brahms", "Franz Schubert"]
+        )
+        self.assertEqual(
+            [track.album_artist for track in tracks], ["Various Artists"] * 2
+        )
 
     def test_missing_track_artist_also_uses_various_artists(self):
         album = _parse_album(
@@ -135,7 +141,11 @@ class AlbumTests(unittest.TestCase):
     def test_rejects_album_without_genre(self):
         with self.assertRaisesRegex(SpecError, "album: .*genre.*required property"):
             _parse_album(
-                {"title": "Album", "artist": "Artist", "tracks": [{"title": "Song", "url": "url"}]}
+                {
+                    "title": "Album",
+                    "artist": "Artist",
+                    "tracks": [{"title": "Song", "url": "url"}],
+                }
             )
 
     def test_accepts_display_names_for_all_credits(self):
@@ -155,7 +165,9 @@ class AlbumTests(unittest.TestCase):
                 ],
             }
         )
-        self.assertEqual(album.requests()[0].metadata()["artist"], "Owl City feat. Someone")
+        self.assertEqual(
+            album.requests()[0].metadata()["artist"], "Owl City feat. Someone"
+        )
 
     def test_schema_rejects_unknown_nested_fields(self):
         with self.assertRaisesRegex(
@@ -168,7 +180,10 @@ class AlbumTests(unittest.TestCase):
                     "genre": "Classical",
                     "url": "https://example.com",
                     "tracks": [
-                        {"title": "Song", "chapters": [{"start": "0:00", "end": "1:00"}]}
+                        {
+                            "title": "Song",
+                            "chapters": [{"start": "0:00", "end": "1:00"}],
+                        }
                     ],
                 }
             )
