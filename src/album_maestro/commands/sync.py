@@ -38,13 +38,7 @@ class ImportCommand(LibraryCommand):
             help="Replace existing albums and their tracks",
         )
 
-    def run(self, args: argparse.Namespace) -> int:
-        try:
-            music_library = Library.load(args.library)
-        except LibraryError as error:
-            logger.error("Cannot load library: %s", error)
-            return 1
-
+    def run_library(self, library: Library, args: argparse.Namespace) -> int:
         json_paths = [args.json] if args.json else self.list_json_files(args.directory)
         if not json_paths:
             logger.error("No JSON files found")
@@ -55,7 +49,7 @@ class ImportCommand(LibraryCommand):
         for json_path in json_paths:
             try:
                 album = specs.load_album(json_path)
-                reference = music_library.create_album(
+                reference = library.create_album(
                     album, overwrite=args.overwrite
                 )
             except SpecError as error:
@@ -114,15 +108,9 @@ class ExportCommand(LibraryCommand):
             help="Replace existing JSON output files",
         )
 
-    def run(self, args: argparse.Namespace) -> int:
-        try:
-            music_library = Library.load(args.library)
-        except LibraryError as error:
-            logger.error("Cannot load library: %s", error)
-            return 1
-
+    def run_library(self, library: Library, args: argparse.Namespace) -> int:
         references = (
-            music_library.album_references()
+            library.album_references()
             if args.all_albums
             else args.album_references
         )
@@ -132,7 +120,7 @@ class ExportCommand(LibraryCommand):
                 logger.error("--json requires exactly one album reference")
                 return 1
             return self._export_one(
-                music_library, references[0], args.json, args.overwrite
+                library, references[0], args.json, args.overwrite
             )
 
         assert args.directory is not None
@@ -140,7 +128,7 @@ class ExportCommand(LibraryCommand):
         failed = False
         for reference in dict.fromkeys(references):
             output = args.directory / f"{reference}.json"
-            if self._export_one(music_library, reference, output, args.overwrite):
+            if self._export_one(library, reference, output, args.overwrite):
                 failed = True
         return 1 if failed else 0
 

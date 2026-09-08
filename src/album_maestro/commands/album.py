@@ -23,13 +23,7 @@ class CreateCommand(LibraryCommand):
         """Add arguments for creating an album."""
         pass
 
-    def run(self, args: argparse.Namespace) -> int:
-        try:
-            music_library = Library.load(args.library)
-        except LibraryError as error:
-            logger.error("Cannot load library: %s", error)
-            return 1
-
+    def run_library(self, library: Library, args: argparse.Namespace) -> int:
         title = prompts.text("Album title")
         artist = prompts.text("Album artist (optional)")
         composer = prompts.text("Album composer (optional)")
@@ -37,7 +31,7 @@ class CreateCommand(LibraryCommand):
         shared_url = prompts.text("Album shared URL (optional)")
 
         try:
-            reference = music_library.create_album(
+            reference = library.create_album(
                 Album(
                     title=title,
                     artist=artist or None,
@@ -65,10 +59,9 @@ class ListCommand(LibraryCommand):
     def configure_arguments(self, parser: argparse.ArgumentParser) -> None:
         """Add arguments for listing albums."""
 
-    def run(self, args: argparse.Namespace) -> int:
+    def run_library(self, library: Library, args: argparse.Namespace) -> int:
         try:
-            music_library = Library.load(args.library)
-            albums = music_library.list_albums()
+            albums = library.list_albums()
         except LibraryError as error:
             logger.error("Cannot list albums: %s", error)
             return 1
@@ -88,10 +81,9 @@ class SearchCommand(LibraryCommand):
         parser.add_argument("--composer", help="Match composers")
         parser.add_argument("--genre", help="Match genres")
 
-    def run(self, args: argparse.Namespace) -> int:
+    def run_library(self, library: Library, args: argparse.Namespace) -> int:
         try:
-            music_library = Library.load(args.library)
-            albums = music_library.search_albums(
+            albums = library.search_albums(
                 title=args.title,
                 artist=args.artist,
                 composer=args.composer,
@@ -113,9 +105,9 @@ class ShowCommand(LibraryCommand):
     def configure_arguments(self, parser: argparse.ArgumentParser) -> None:
         parser.add_argument("reference", metavar="ALBUM")
 
-    def run(self, args: argparse.Namespace) -> int:
+    def run_library(self, library: Library, args: argparse.Namespace) -> int:
         try:
-            album = Library.load(args.library).load_album(args.reference)
+            album = library.load_album(args.reference)
         except LibraryError as error:
             logger.error("Cannot show album: %s", error)
             return 1
@@ -151,11 +143,10 @@ class EditCommand(LibraryCommand):
     def configure_arguments(self, parser: argparse.ArgumentParser) -> None:
         parser.add_argument("reference", metavar="ALBUM")
 
-    def run(self, args: argparse.Namespace) -> int:
+    def run_library(self, library: Library, args: argparse.Namespace) -> int:
         try:
-            music_library = Library.load(args.library)
-            album = music_library.load_album(args.reference)
-            music_library.update_album(
+            album = library.load_album(args.reference)
+            library.update_album(
                 args.reference,
                 title=prompts.text("Album title", album.title),
                 artist=prompts.text("Album artist (optional)", album.artist),
@@ -174,11 +165,11 @@ class EditCommand(LibraryCommand):
                 return 0
             try:
                 if action in {"a", "add"}:
-                    _add_track(music_library, args.reference)
+                    _add_track(library, args.reference)
                 elif action in {"e", "edit"}:
-                    _edit_track(music_library, args.reference)
+                    _edit_track(library, args.reference)
                 elif action in {"r", "remove"}:
-                    _remove_track(music_library, args.reference)
+                    _remove_track(library, args.reference)
                 else:
                     print("Please choose add, edit, remove, or done.")
             except (LibraryError, ValueError) as error:
@@ -195,16 +186,10 @@ class DeleteCommand(LibraryCommand):
     def configure_arguments(self, parser: argparse.ArgumentParser) -> None:
         parser.add_argument("reference", metavar="ALBUM")
 
-    def run(self, args: argparse.Namespace) -> int:
-        try:
-            music_library = Library.load(args.library)
-        except LibraryError as error:
-            logger.error("Cannot load library: %s", error)
-            return 1
-
+    def run_library(self, library: Library, args: argparse.Namespace) -> int:
         reference = args.reference
         try:
-            music_library.delete_album(reference)
+            library.delete_album(reference)
             logger.info("Deleted album: %s", reference)
         except (LibraryError, ValueError) as error:
             logger.error("Cannot delete album: %s", error)
@@ -239,18 +224,13 @@ class DownloadCommand(LibraryCommand):
             help="Overwrite existing track files without prompting",
         )
 
-    def run(self, args: argparse.Namespace) -> int:
-        try:
-            music_library = Library.load(args.library)
-        except LibraryError as error:
-            logger.error("Cannot load library: %s", error)
-            return 1
+    def run_library(self, library: Library, args: argparse.Namespace) -> int:
         references = (
-            music_library.album_references()
+            library.album_references()
             if args.all_albums
             else args.album_references
         )
-        return self._run_download(references, music_library, overwrite=args.overwrite)
+        return self._run_download(references, library, overwrite=args.overwrite)
 
     @staticmethod
     def _run_download(
