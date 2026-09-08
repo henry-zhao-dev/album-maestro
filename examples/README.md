@@ -12,7 +12,8 @@ album-maestro create --library ~/Music/album-maestro-example
 album-maestro list --library ~/Music/album-maestro-example
 ```
 
-The YouTube URLs in the fixture files are placeholders.
+The source URLs in the fixture files are placeholders and are retained only as
+catalog metadata examples.
 
 Import an example album into SQLite with:
 
@@ -34,10 +35,4 @@ Export an imported album back to JSON with:
 album-maestro export beethoven-symphony-no-5 \
   --json beethoven-symphony-no-5.json \
   --library ~/Music/album-maestro-example
-```
-
-Then download the imported albums with:
-
-```shell
-album-maestro download --all --library ~/Music/album-maestro-example
 ```

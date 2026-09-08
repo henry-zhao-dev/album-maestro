@@ -1,15 +1,12 @@
-"""Download and build complete albums from resolved catalog models."""
+"""Build track files from resolved catalog models and source audio."""
 
 import logging
 import shutil
-import tempfile
-import time
-from collections import Counter
 from collections.abc import Sequence
 from pathlib import Path
 
-from album_maestro import audio, downloader
-from album_maestro.models import Album, Chapter, TrackRequest
+from album_maestro import audio
+from album_maestro.models import Chapter, TrackRequest
 
 logger = logging.getLogger(__name__)
 
@@ -18,155 +15,13 @@ class PipelineError(ValueError):
     """Raised when catalog data cannot be transformed into output audio."""
 
 
-def download_album(
-    album: Album, output_dir: str | Path = ".", overwrite: bool = False
-) -> list[Path]:
-    """Download, transform, and organize every track in an album."""
-
-    started_at = time.monotonic()
-    logger.info('Downloading album "%s" (%s tracks)', album.title, len(album.tracks))
-
-    # Resolve album defaults and track overrides before media work begins.
-    # This also applies the Various Artists fallback for compilations.
-    tracks = album.requests()
-    outputs = _download_tracks(tracks, output_dir, overwrite)
-
-    message = 'Finished album "%s" in %.1fs (%s/%s tracks created)'
-    log = logger.info if len(outputs) == len(album.tracks) else logger.warning
-    log(
-        message,
-        album.title,
-        time.monotonic() - started_at,
-        len(outputs),
-        len(album.tracks),
-    )
-    return outputs
-
-
-def existing_album_tracks(album: Album, output_dir: str | Path = ".") -> list[Path]:
-    """Return the output paths that already exist for an album."""
-
-    destination = Path(output_dir).expanduser().resolve()
-    return [
-        path
-        for track in album.requests()
-        if (path := _track_output_path(track, destination)).exists()
-    ]
-
-
-def _download_tracks(
-    tracks: Sequence[TrackRequest],
-    output_dir: str | Path = ".",
-    overwrite: bool = False,
-) -> list[Path]:
-    """Download each unique source once and create its requested tracks.
-
-    Failed sources are cached so later tracks sharing the same URL are skipped
-    without retrying the download.
-    """
-
-    destination = Path(output_dir).expanduser().resolve()
-    destination.mkdir(parents=True, exist_ok=True)
-
-    outputs: list[Path] = []
-    output_paths = [_track_output_path(track, destination) for track in tracks]
-    if len(set(output_paths)) != len(output_paths):
-        raise PipelineError("multiple tracks resolve to the same output path")
-
-    sources: dict[str, Path | None] = {}
-    source_counts = Counter(track.url for track in tracks)
-    source_numbers = {url: index for index, url in enumerate(source_counts, start=1)}
-
-    with tempfile.TemporaryDirectory(prefix=".album-maestro-", dir=destination) as temp:
-        temp_dir = Path(temp)
-
-        for index, track in enumerate(tracks, start=1):
-            track_path = _track_output_path(track, destination)
-            if not overwrite and track_path.exists():
-                logger.info("Skipped existing track %s/%s", index, track.title)
-                outputs.append(track_path)
-                continue
-
-            if track.url not in sources:
-                source_number = source_numbers[track.url]
-                logger.info(
-                    "Downloading source %s/%s (%s tracks)",
-                    source_number,
-                    len(source_counts),
-                    source_counts[track.url],
-                )
-                logger.debug("Source %s URL: %s", source_number, track.url)
-                source_started_at = time.monotonic()
-                source_dir = temp_dir / f"source-{len(sources) + 1}"
-                source_dir.mkdir()
-                try:
-                    sources[track.url] = downloader.download_audio(
-                        track.url, source_dir
-                    )
-                except downloader.DownloaderError as error:
-                    sources[track.url] = None
-                    logger.error(
-                        "Source %s/%s failed; %s tracks will be skipped: %s",
-                        source_number,
-                        len(source_counts),
-                        source_counts[track.url],
-                        error,
-                    )
-                else:
-                    logger.info(
-                        "Downloaded source %s/%s in %.1fs",
-                        source_number,
-                        len(source_counts),
-                        time.monotonic() - source_started_at,
-                    )
-
-            source = sources[track.url]
-            if source is None:
-                continue
-
-            logger.info("Creating track %s/%s: %s", index, len(tracks), track.title)
-            track_started_at = time.monotonic()
-            work_dir = temp_dir / f"track-{index}"
-            work_dir.mkdir()
-            try:
-                output = _create_track(track, source, destination, work_dir)
-            except (PipelineError, audio.AudioError) as error:
-                logger.error(
-                    "Cannot create track %s/%s (%s): %s",
-                    index,
-                    len(tracks),
-                    track.title,
-                    error,
-                )
-                continue
-            outputs.append(output)
-            logger.info(
-                "Created track %s/%s in %.1fs: %s",
-                index,
-                len(tracks),
-                time.monotonic() - track_started_at,
-                output,
-            )
-
-    return outputs
-
-
-def _download_track(
-    track: TrackRequest, output_dir: str | Path = ".", overwrite: bool = False
-) -> Path | None:
-    """Download, transform, and organize one validated track."""
-
-    outputs = _download_tracks((track,), output_dir, overwrite)
-    return outputs[0] if outputs else None
-
-
 def _create_track(
     track: TrackRequest,
     source: Path,
     destination: Path,
     work_dir: Path,
 ) -> Path:
-    """Create one track from an already downloaded source file."""
+    """Create one track from a source audio file."""
 
     track_source = work_dir / f"{track.title}{source.suffix}"
     shutil.copy2(source, track_source)
@@ -204,7 +59,7 @@ def _create_track(
 def _track_output_path(
     track: TrackRequest,
     destination: Path,
-    suffix: str = f".{downloader.DEFAULT_AUDIO_FORMAT}",
+    suffix: str,
 ) -> Path:
     """Return the final library path for a track."""
 
@@ -219,7 +74,7 @@ def _track_output_path(
         output.resolve().relative_to(destination)
     except ValueError as error:
         raise PipelineError(
-            "track output path escapes the downloads directory"
+            "track output path escapes the destination directory"
         ) from error
     return output
 
@@ -239,10 +94,10 @@ def _safe_path_component(value: str, *, label: str) -> str:
 
 
 def _resolve_time_range(track: TrackRequest, duration_ms: int) -> tuple[int, int]:
-    """Resolve optional trim bounds against the downloaded file duration."""
+    """Resolve optional trim bounds against the source file duration."""
 
     if duration_ms <= 0:
-        raise PipelineError("downloaded audio has no valid duration")
+        raise PipelineError("source audio has no valid duration")
 
     start_ms = track.start_ms if track.start_ms is not None else 0
     end_ms = track.end_ms if track.end_ms is not None else duration_ms

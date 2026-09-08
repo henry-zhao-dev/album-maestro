@@ -1,35 +1,31 @@
 # Album Maestro
 
 Album Maestro is a Python CLI for turning long-form recordings into albums you
-can actually keep and play. Classical recordings are often available on
-YouTube as one long video rather than as a properly structured release. Album
-Maestro lets you organize albums, tracks, metadata, and chapter boundaries in a
-local SQLite database, then downloads and produces tagged audio files that
-work with established players such as Apple Music, VLC, and Windows Media
-Player.
+can actually keep and play. It lets you organize albums, tracks, metadata, and
+chapter boundaries in a local SQLite database, then export the catalog as
+portable JSON specifications.
 
 The goal is not to build another streaming service or music player. It is a
-free, open-source album authoring and processing tool: use any permitted media
-source, decide how it should become an album, and keep the resulting files and
+free, open-source album authoring and catalog management tool: describe how a
+permitted media source should become an album, and keep the resulting
 specification under your control.
 
 The code keeps catalog rules, library operations, CLI interaction,
-downloading, and audio processing separate so each area can evolve without
-forcing changes elsewhere. Besides making the current behavior easier to
-test, this gives future interfaces, such as a GUI, a way to reuse the same
-core logic.
+specification import/export, and audio processing separate so each area can
+evolve without forcing changes elsewhere. Besides making the current behavior
+easier to test, this gives future interfaces, such as a GUI, a way to reuse the
+same core logic.
 
 ## Engineering highlights
 
 - SQLite constraints and readable library-level validation errors
 - A local SQLite catalog with relational album and track data
-- Shared-source processing that downloads a recording once and creates
-  multiple trimmed tracks from it
+- Resolved track metadata, time ranges, and chapter boundaries
 - Metadata and chapter embedding through FFmpeg and ffprobe subprocesses
 - Interactive CLI workflows with explicit overwrite and partial-failure
   handling
 - Automated tests across the CLI, specifications, library operations,
-  downloader behavior, prompts, and audio pipeline
+  prompts, and audio pipeline
 
 ## Architecture
 
@@ -39,33 +35,26 @@ core logic.
 | [`database.py`](src/album_maestro/database.py) | SQLite schema and catalog persistence |
 | [`library.py`](src/album_maestro/library.py) | Library-level operations shared independently of the CLI |
 | [`models.py`](src/album_maestro/models.py) | Resolved album, track, and chapter models |
-| [`downloader.py`](src/album_maestro/downloader.py) | Source acquisition through the yt-dlp Python API |
 | [`audio.py`](src/album_maestro/audio.py) | Audio inspection and editing through FFmpeg and ffprobe |
-| [`pipeline.py`](src/album_maestro/pipeline.py) | Album download and track-creation orchestration |
+| [`pipeline.py`](src/album_maestro/pipeline.py) | Source-audio track processing and metadata orchestration |
 
 ## Project status and responsible use
 
 Album Maestro is an early-stage CLI rather than a production service. Album
 and track editing is being built incrementally through the CLI. The project is
-not affiliated with or endorsed by YouTube, yt-dlp, or FFmpeg.
+not affiliated with or endorsed by any media platform or FFmpeg.
 
-This repository does not include downloaded media and its example URLs are
+This repository does not include media files and its example source URLs are
 placeholders. Album Maestro does not grant rights to third-party content or
-override the terms of any platform. Only download or process media when you
-have permission and when doing so complies with applicable laws, content
-licenses, and platform terms. You are responsible for the URLs and media you
-provide.
+override the terms of any platform. You are responsible for the source
+references and media you provide, and for complying with applicable laws,
+content licenses, and platform terms.
 
 ## Requirements
 
 - Python 3.11 or newer
-- [FFmpeg](https://ffmpeg.org/), including `ffmpeg` and `ffprobe` on `PATH`
-- Network access to the source URLs in your album database
-
-Album Maestro uses `yt-dlp` for downloads and FFmpeg for audio inspection,
-trimming, metadata, and chapter tags. If either `ffmpeg` or `ffprobe` is not
-available, downloads that need audio processing will fail with an explanatory
-error.
+- [FFmpeg](https://ffmpeg.org/), including `ffmpeg` and `ffprobe` on `PATH`,
+  when using the audio-processing helpers
 
 For example, install FFmpeg with Homebrew on macOS or apt on Debian/Ubuntu:
 
@@ -119,8 +108,7 @@ The command creates this layout:
 
 ```text
 ~/Music/album-maestro/
-├── album-maestro.db
-└── downloads/
+└── album-maestro.db
 ```
 
 Create an album draft interactively:
@@ -188,8 +176,7 @@ album-maestro import --directory albums \
 
 Import validates each file against the packaged album schema. By default,
 existing album references are rejected. Pass `--overwrite` to replace an
-existing album, including all of its tracks and chapters. Downloaded audio
-files are not changed.
+existing album, including all of its tracks and chapters.
 
 Export one album back to a JSON specification:
 
@@ -235,37 +222,7 @@ album-maestro delete beethoven-symphony-no-5 \
   --library ~/Music/album-maestro
 ```
 
-This removes the album, its tracks, and chapters from SQLite. Existing
-downloaded audio files are not removed.
-
-## Download albums
-
-Download one album by its reference:
-
-```shell
-album-maestro download beethoven-symphony-no-5 \
-  --library ~/Music/album-maestro
-```
-
-Download several albums by passing multiple references, or download every album
-with `--all`:
-
-```shell
-album-maestro download beethoven-symphony-no-5 classical-favorites \
-  --library ~/Music/album-maestro
-album-maestro download --all --library ~/Music/album-maestro
-```
-
-Without `--overwrite`, existing track files are listed and Album Maestro asks
-once whether to overwrite them. Answering no skips existing tracks and
-continues with tracks that are not present. Pass `--overwrite` to overwrite
-existing tracks without prompting.
-
-Generated files are organized as:
-
-```text
-downloads/<album artist>/<album title>/<track title>.m4a
-```
+This removes the album, its tracks, and chapters from SQLite.
 
 ## Troubleshooting
 
@@ -286,18 +243,16 @@ want to replace existing output files.
 ## Current limitations
 
 - Album and track editing is interactive; batch editing is future work.
-- Downloads depend on the availability and terms of the selected source and
-  `yt-dlp`.
+- Audio processing is exposed through reusable helpers and may be expanded in
+  future CLI workflows.
 
 ## Third-party software
 
 Album Maestro is licensed under the [MIT License](LICENSE).
 
-Album Maestro uses [yt-dlp](https://github.com/yt-dlp/yt-dlp), which is licensed
-under the [Unlicense](https://github.com/yt-dlp/yt-dlp/blob/master/LICENSE),
-and [jsonschema](https://github.com/python-jsonschema/jsonschema), which is
-licensed under the
-[MIT License](https://github.com/python-jsonschema/jsonschema/blob/main/COPYING).
+Album Maestro uses
+[jsonschema](https://github.com/python-jsonschema/jsonschema), which is licensed
+under the [MIT License](https://github.com/python-jsonschema/jsonschema/blob/main/COPYING).
 
 FFmpeg and ffprobe are external system requirements and are not distributed
 with Album Maestro. FFmpeg is generally licensed under LGPL-2.1-or-later, while

@@ -191,7 +191,7 @@ class AlbumCommandTests(unittest.TestCase):
             "Hilary Hahn",
             "Johann Sebastian Bach",
             "Baroque",
-            "https://youtu.be/recording",
+            "https://example.com/recording",
         ),
     )
     def test_create_writes_literal_metadata(self, input_mock):
@@ -223,7 +223,7 @@ class AlbumCommandTests(unittest.TestCase):
                 "Hilary Hahn",
                 "Johann Sebastian Bach",
                 "Baroque",
-                "https://youtu.be/recording",
+                "https://example.com/recording",
             ),
         )
 
@@ -369,54 +369,6 @@ class AlbumCommandTests(unittest.TestCase):
                     (0,),
                 )
         self.assertEqual(result, 1)
-
-    @patch("album_maestro.commands.album.pipeline.download_album")
-    def test_download_loads_album_from_library(self, download_album):
-        with tempfile.TemporaryDirectory() as temporary_dir:
-            root = Path(temporary_dir) / "library"
-            _create_album_library(root)
-            download_album.return_value = [Path("first.m4a"), Path("second.m4a")]
-            result = main(["download", "symphony", "--library", str(root)])
-        self.assertEqual(result, 0)
-        album, destination, overwrite = download_album.call_args.args
-        self.assertEqual(album.title, "Symphony")
-        self.assertEqual(album.artist, "Ludwig van Beethoven")
-        self.assertEqual(destination, root.resolve() / "downloads")
-        self.assertFalse(overwrite)
-
-    @patch("album_maestro.commands.album.pipeline.download_album")
-    @patch("album_maestro.commands.album.prompts.confirm", return_value=False)
-    def test_download_skips_existing_tracks_when_overwrite_declined(
-        self, confirm, download_album
-    ):
-        with tempfile.TemporaryDirectory() as temporary_dir:
-            root = Path(temporary_dir) / "library"
-            _create_album_library(root)
-            existing = (
-                root / "downloads" / "Ludwig van Beethoven" / "Symphony" / "First.m4a"
-            )
-            existing.parent.mkdir(parents=True)
-            existing.touch()
-            download_album.return_value = [existing, Path("second.m4a")]
-            result = main(["download", "symphony", "--library", str(root)])
-        self.assertEqual(result, 0)
-        confirm.assert_called_once_with("Overwrite existing tracks?", default=False)
-        self.assertFalse(download_album.call_args.args[2])
-
-    @patch("album_maestro.commands.album.pipeline.download_album")
-    def test_download_all_uses_every_album_file(self, download_album):
-        with tempfile.TemporaryDirectory() as temporary_dir:
-            root = Path(temporary_dir) / "library"
-            _create_album_library(root)
-            _write_album(root, "concerto", "Concerto")
-            download_album.return_value = [Path("first.m4a"), Path("second.m4a")]
-            result = main(["download", "--all", "--library", str(root)])
-        self.assertEqual(result, 0)
-        self.assertEqual(download_album.call_count, 2)
-        self.assertEqual(
-            [call.args[0].title for call in download_album.call_args_list],
-            ["Concerto", "Symphony"],
-        )
 
 
 def _create_album_library(root: Path) -> None:

@@ -14,7 +14,7 @@ class LibraryError(ValueError):
 
 @dataclass(frozen=True)
 class Library:
-    """A music library rooted at a local SQLite database and output directory."""
+    """A music library rooted at a local SQLite database."""
 
     root: Path
     name: str
@@ -32,12 +32,6 @@ class Library:
         """Return the SQLite database containing the catalog."""
 
         return self.root / "album-maestro.db"
-
-    @property
-    def downloads_dir(self) -> Path:
-        """Return the directory containing generated audio files."""
-
-        return self.root / "downloads"
 
     def album_references(self) -> list[str]:
         """Return every album reference in database order."""
@@ -181,27 +175,22 @@ class Library:
             raise LibraryError(str(error)) from error
 
     def initialize(self) -> Path:
-        """Create the library directories and SQLite database."""
+        """Create the library root and SQLite database."""
 
         if self.database_path.exists():
             raise LibraryError(f"{self.database_path} already exists")
 
         self.root.mkdir(parents=True, exist_ok=True)
-        self.downloads_dir.mkdir(parents=True, exist_ok=True)
         try:
             return database.initialize(self.database_path, self.name)
         except database.DatabaseError as error:
             raise LibraryError(str(error)) from error
 
     def validate(self) -> None:
-        """Verify that the database and output directory exist."""
+        """Verify that the SQLite database exists."""
 
         if not self.database_path.is_file():
             raise LibraryError(f"database does not exist: {self.database_path}")
-        if not self.downloads_dir.is_dir():
-            raise LibraryError(
-                f"downloads directory does not exist: {self.downloads_dir}"
-            )
 
     @classmethod
     def load(cls, root: str | Path = ".") -> "Library":

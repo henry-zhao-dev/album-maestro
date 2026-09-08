@@ -12,7 +12,6 @@ _registered_commands = (
     album.ShowCommand(),
     album.EditCommand(),
     album.DeleteCommand(),
-    album.DownloadCommand(),
     sync.ImportCommand(),
     sync.ExportCommand(),
 )

@@ -16,7 +16,6 @@ class InitializeLibraryTests(unittest.TestCase):
             self.assertEqual(database_path, root.resolve() / "album-maestro.db")
             self.assertTrue(database_path.is_file())
             self.assertFalse((root / "albums").exists())
-            self.assertTrue((root / "downloads").is_dir())
 
             with sqlite3.connect(database_path) as connection:
                 self.assertEqual(
@@ -48,7 +47,6 @@ class LoadLibraryTests(unittest.TestCase):
         self.assertEqual(
             music_library.database_path, root.resolve() / "album-maestro.db"
         )
-        self.assertEqual(music_library.downloads_dir, root.resolve() / "downloads")
 
     def test_rejects_incomplete_library_structure(self):
         with tempfile.TemporaryDirectory() as temporary_dir:
@@ -61,7 +59,6 @@ class LoadLibraryTests(unittest.TestCase):
     def test_load_migrates_an_older_database_with_no_chapters_table(self):
         with tempfile.TemporaryDirectory() as temporary_dir:
             root = Path(temporary_dir)
-            (root / "downloads").mkdir()
             database_path = root / "album-maestro.db"
             with sqlite3.connect(database_path) as connection:
                 connection.executescript("""
