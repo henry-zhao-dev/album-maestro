@@ -1,4 +1,4 @@
-"""The ``album`` command group and its SQLite-backed operations."""
+"""Top-level album commands and their SQLite-backed operations."""
 
 import argparse
 import logging
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 class CreateCommand(Command):
-    """Implement ``album-maestro album create``."""
+    """Implement ``album-maestro create``."""
 
     name = "create"
     help = "Create a new album."
@@ -57,12 +57,12 @@ class CreateCommand(Command):
             return 1
 
         print(f"\nAlbum created: {reference}")
-        print("The album has no tracks yet. Use 'album edit' to add tracks.")
+        print("The album has no tracks yet. Use 'edit' to add tracks.")
         return 0
 
 
 class ListCommand(Command):
-    """Implement ``album-maestro album list``."""
+    """Implement ``album-maestro list``."""
 
     name = "list"
     help = "List albums in a music library."
@@ -87,7 +87,7 @@ class ListCommand(Command):
 
 
 class SearchCommand(Command):
-    """Implement ``album-maestro album search``."""
+    """Implement ``album-maestro search``."""
 
     name = "search"
     help = "Search album metadata."
@@ -121,7 +121,7 @@ class SearchCommand(Command):
 
 
 class ShowCommand(Command):
-    """Implement ``album-maestro album show``."""
+    """Implement ``album-maestro show``."""
 
     name = "show"
     help = "Show an album and its tracks."
@@ -165,7 +165,7 @@ class ShowCommand(Command):
 
 
 class EditCommand(Command):
-    """Implement interactive album and track editing."""
+    """Implement the interactive ``album-maestro edit`` command."""
 
     name = "edit"
     help = "Edit an album and its tracks."
@@ -215,7 +215,7 @@ class EditCommand(Command):
 
 
 class DeleteCommand(Command):
-    """Implement ``album-maestro album delete`` command."""
+    """Implement the ``album-maestro delete`` command."""
 
     name = "delete"
     help = "Delete an album."
@@ -248,7 +248,7 @@ class DeleteCommand(Command):
 
 
 class DownloadCommand(Command):
-    """Implement ``album-maestro album download``."""
+    """Implement ``album-maestro download``."""
 
     name = "download"
     help = "Download every track in one or more albums."
@@ -347,37 +347,6 @@ class DownloadCommand(Command):
             if len(outputs) != len(album.tracks):
                 failed = True
         return 1 if failed else 0
-
-
-class AlbumCommand(Command):
-    """Route ``album-maestro album`` to its operations."""
-
-    name = "album"
-    help = "Work with albums in a music library."
-
-    operations = {
-        command.name: command
-        for command in (
-            CreateCommand(),
-            ListCommand(),
-            SearchCommand(),
-            ShowCommand(),
-            EditCommand(),
-            DeleteCommand(),
-            DownloadCommand(),
-        )
-    }
-
-    def configure(self, parser: argparse.ArgumentParser) -> None:
-        operations = parser.add_subparsers(
-            dest="album_operation", metavar="COMMAND", required=True
-        )
-        for name, command in self.operations.items():
-            operation_parser = operations.add_parser(name, help=command.help)
-            command.configure(operation_parser)
-
-    def run(self, args: argparse.Namespace) -> int:
-        return self.operations[args.album_operation].run(args)
 
 
 def _print_album_table(albums: Sequence[AlbumSummary]) -> None:

@@ -8,8 +8,8 @@ Create a library and add album records through the CLI:
 
 ```shell
 album-maestro init ~/Music/album-maestro-example
-album-maestro album create --library ~/Music/album-maestro-example
-album-maestro album list --library ~/Music/album-maestro-example
+album-maestro create --library ~/Music/album-maestro-example
+album-maestro list --library ~/Music/album-maestro-example
 ```
 
 The YouTube URLs in the fixture files are placeholders.
@@ -39,5 +39,5 @@ album-maestro export beethoven-symphony-no-5 \
 Then download the imported albums with:
 
 ```shell
-album-maestro album download --all --library ~/Music/album-maestro-example
+album-maestro download --all --library ~/Music/album-maestro-example
 ```

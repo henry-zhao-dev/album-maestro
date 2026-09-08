@@ -1,19 +1,23 @@
 """Registry of commands available directly beneath ``album-maestro``."""
 
-from album_maestro.commands.album import AlbumCommand
+from album_maestro.commands import album, sync
 from album_maestro.commands.base import Command
 from album_maestro.commands.initialize import InitCommand
-from album_maestro.commands.json_import import ImportCommand
-from album_maestro.commands.json_export import ExportCommand
 
 _registered_commands = (
     InitCommand(),
-    AlbumCommand(),
-    ImportCommand(),
-    ExportCommand(),
+    album.CreateCommand(),
+    album.ListCommand(),
+    album.SearchCommand(),
+    album.ShowCommand(),
+    album.EditCommand(),
+    album.DeleteCommand(),
+    album.DownloadCommand(),
+    sync.ImportCommand(),
+    sync.ExportCommand(),
 )
 
-# Nested operations such as ``album download`` are owned by their parent command.
+# Album operations are registered directly beneath the root parser.
 COMMANDS: dict[str, Command] = {
     command.name: command for command in _registered_commands
 }

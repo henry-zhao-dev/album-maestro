@@ -1,4 +1,4 @@
-"""Contract shared by top-level commands and nested command operations."""
+"""Contract shared by top-level commands."""
 
 import argparse
 from abc import ABC, abstractmethod

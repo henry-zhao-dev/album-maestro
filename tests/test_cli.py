@@ -19,12 +19,12 @@ class HelpTests(unittest.TestCase):
             result = main([])
         self.assertEqual(result, 0)
         self.assertIn("Create a new music library.", output.getvalue())
-        self.assertIn("Work with albums in a music library.", output.getvalue())
+        self.assertIn("Create a new album.", output.getvalue())
 
     def test_help_after_command_is_handled_by_command_parser(self):
         for arguments, usage, detail in (
             (["init", "-h"], "usage: album-maestro init", "--name"),
-            (["album", "-h"], "usage: album-maestro album", "delete"),
+            (["create", "-h"], "usage: album-maestro create", "--library"),
         ):
             with self.subTest(command=arguments[0]):
                 output = StringIO()
@@ -33,14 +33,6 @@ class HelpTests(unittest.TestCase):
                 self.assertEqual(context.exception.code, 0)
                 self.assertIn(usage, output.getvalue())
                 self.assertIn(detail, output.getvalue())
-
-    def test_missing_album_command_uses_a_user_facing_name(self):
-        errors = StringIO()
-        with redirect_stderr(errors), self.assertRaises(SystemExit) as context:
-            main(["album"])
-        self.assertEqual(context.exception.code, 2)
-        self.assertIn("the following arguments are required: COMMAND", errors.getvalue())
-        self.assertNotIn("album_operation", errors.getvalue())
 
 
 class InitCommandTests(unittest.TestCase):
@@ -183,7 +175,7 @@ class AlbumCommandTests(unittest.TestCase):
             Library(root=root, name="Music").initialize()
             output = StringIO()
             with redirect_stdout(output):
-                result = main(["album", "create", "--library", str(root)])
+                result = main(["create", "--library", str(root)])
             with sqlite3.connect(root / "album-maestro.db") as connection:
                 album = connection.execute(
                     "SELECT title, artist, composer, genre, url FROM albums"
@@ -199,7 +191,7 @@ class AlbumCommandTests(unittest.TestCase):
             Library(root=root, name="Music").initialize()
             output = StringIO()
             with redirect_stdout(output):
-                result = main(["album", "create", "--library", str(root)])
+                result = main(["create", "--library", str(root)])
             with sqlite3.connect(root / "album-maestro.db") as connection:
                 album = connection.execute(
                     "SELECT title, artist, composer, genre, url FROM albums"
@@ -225,10 +217,10 @@ class AlbumCommandTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_dir:
             root = Path(temporary_dir) / "library"
             Library(root=root, name="Music").initialize()
-            main(["album", "create", "--library", str(root)])
+            main(["create", "--library", str(root)])
             output = StringIO()
             with redirect_stdout(output):
-                result = main(["album", "list", "--library", str(root)])
+                result = main(["list", "--library", str(root)])
 
         self.assertEqual(result, 0)
         self.assertIn("REFERENCE", output.getvalue())
@@ -246,7 +238,7 @@ class AlbumCommandTests(unittest.TestCase):
             library.create_album(Album(title="Ocean Eyes", artist="Owl City", genre="Pop", tracks=()))
             output = StringIO()
             with redirect_stdout(output):
-                result = main(["album", "search", "--artist", "Beethoven", "--library", str(root)])
+                result = main(["search", "--artist", "Beethoven", "--library", str(root)])
 
         self.assertEqual(result, 0)
         self.assertIn("beethoven-symphony", output.getvalue())
@@ -258,7 +250,7 @@ class AlbumCommandTests(unittest.TestCase):
             _create_album_library(root)
             output = StringIO()
             with redirect_stdout(output):
-                result = main(["album", "show", "symphony", "--library", str(root)])
+                result = main(["show", "symphony", "--library", str(root)])
 
         self.assertEqual(result, 0)
         self.assertIn("Title:        Symphony", output.getvalue())
@@ -271,7 +263,7 @@ class AlbumCommandTests(unittest.TestCase):
             root = Path(temporary_dir) / "library"
             _create_album_library(root)
 
-            result = main(["album", "delete", "symphony", "--library", str(root)])
+            result = main(["delete", "symphony", "--library", str(root)])
 
             self.assertEqual(result, 0)
             self.assertEqual(Library.load(root).list_albums(), [])
@@ -286,7 +278,7 @@ class AlbumCommandTests(unittest.TestCase):
             root = Path(temporary_dir) / "library"
             _create_album_library(root)
 
-            result = main(["album", "delete", "missing", "--library", str(root)])
+            result = main(["delete", "missing", "--library", str(root)])
 
             self.assertEqual(result, 1)
             self.assertEqual(
@@ -317,7 +309,7 @@ class AlbumCommandTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_dir:
             root = Path(temporary_dir) / "library"
             _create_album_library(root)
-            result = main(["album", "edit", "symphony", "--library", str(root)])
+            result = main(["edit", "symphony", "--library", str(root)])
             album = Library.load(root).load_album("symphony")
 
         self.assertEqual(result, 0)
@@ -339,7 +331,7 @@ class AlbumCommandTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_dir:
             root = Path(temporary_dir) / "library"
             Library(root=root, name="Music").initialize()
-            result = main(["album", "create", "--library", str(root)])
+            result = main(["create", "--library", str(root)])
             with sqlite3.connect(root / "album-maestro.db") as connection:
                 self.assertEqual(
                     connection.execute("SELECT COUNT(*) FROM albums").fetchone(),
@@ -353,7 +345,7 @@ class AlbumCommandTests(unittest.TestCase):
             root = Path(temporary_dir) / "library"
             _create_album_library(root)
             download_album.return_value = [Path("first.m4a"), Path("second.m4a")]
-            result = main(["album", "download", "symphony", "--library", str(root)])
+            result = main(["download", "symphony", "--library", str(root)])
         self.assertEqual(result, 0)
         album, destination, overwrite = download_album.call_args.args
         self.assertEqual(album.title, "Symphony")
@@ -371,7 +363,7 @@ class AlbumCommandTests(unittest.TestCase):
             existing.parent.mkdir(parents=True)
             existing.touch()
             download_album.return_value = [existing, Path("second.m4a")]
-            result = main(["album", "download", "symphony", "--library", str(root)])
+            result = main(["download", "symphony", "--library", str(root)])
         self.assertEqual(result, 0)
         confirm.assert_called_once_with("Overwrite existing tracks?", default=False)
         self.assertFalse(download_album.call_args.args[2])
@@ -383,7 +375,7 @@ class AlbumCommandTests(unittest.TestCase):
             _create_album_library(root)
             _write_album(root, "concerto", "Concerto")
             download_album.return_value = [Path("first.m4a"), Path("second.m4a")]
-            result = main(["album", "download", "--all", "--library", str(root)])
+            result = main(["download", "--all", "--library", str(root)])
         self.assertEqual(result, 0)
         self.assertEqual(download_album.call_count, 2)
         self.assertEqual([call.args[0].title for call in download_album.call_args_list], ["Concerto", "Symphony"])
