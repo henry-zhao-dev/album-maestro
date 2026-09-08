@@ -9,7 +9,6 @@ readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
 dependencies = [
-    "yt-dlp (>=2026.8.19,<2027.0.0)",
     "jsonschema (>=4.26.0,<5.0.0)"
 ]
 
