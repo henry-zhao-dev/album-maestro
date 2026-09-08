@@ -4,7 +4,7 @@ import argparse
 import logging
 from collections.abc import Sequence
 
-from album_maestro import pipeline, specs
+from album_maestro import specs
 from album_maestro.commands import prompts
 from album_maestro.commands.base import LibraryCommand
 from album_maestro.library import Library, LibraryError
@@ -274,95 +274,6 @@ class DeleteCommand(LibraryCommand):
             return 1
 
         return 0
-
-
-class DownloadCommand(LibraryCommand):
-    """Implement ``album-maestro download``."""
-
-    name = "download"
-    help = "Download every track in one or more albums."
-
-    def configure_arguments(self, parser: argparse.ArgumentParser) -> None:
-        selection = parser.add_mutually_exclusive_group(required=True)
-        selection.add_argument(
-            "album_references",
-            nargs="*",
-            metavar="ALBUM",
-            help="Album reference in lowercase kebab-case",
-        )
-        selection.add_argument(
-            "--all",
-            action="store_true",
-            dest="all_albums",
-            help="Download every album in the library",
-        )
-        parser.add_argument(
-            "--overwrite",
-            action="store_true",
-            help="Overwrite existing track files without prompting",
-        )
-
-    def run_library(self, library: Library, args: argparse.Namespace) -> int:
-        references = (
-            library.album_references() if args.all_albums else args.album_references
-        )
-        return self._run_download(references, library, overwrite=args.overwrite)
-
-    @staticmethod
-    def _run_download(
-        album_references: Sequence[str],
-        music_library: Library,
-        *,
-        overwrite: bool = False,
-    ) -> int:
-        albums: list[tuple[str, Album]] = []
-        failed = False
-        for reference in dict.fromkeys(album_references):
-            try:
-                album = music_library.load_album(reference)
-            except LibraryError as error:
-                logger.error("Cannot load album %s: %s", reference, error)
-                failed = True
-                continue
-            if not album.tracks:
-                logger.error("Album %s has no tracks", reference)
-                failed = True
-                continue
-            albums.append((reference, album))
-
-        if not albums:
-            if not failed:
-                logger.info("No albums found")
-            return 1 if failed else 0
-
-        destination = music_library.downloads_dir
-        try:
-            existing = {
-                path
-                for _, album in albums
-                for path in pipeline.existing_album_tracks(album, destination)
-            }
-        except ValueError as error:
-            logger.error("Cannot resolve album tracks: %s", error)
-            return 1
-        if existing:
-            logger.warning("%s track files already exist", len(existing))
-            for path in sorted(existing):
-                logger.warning("Existing track: %s", path)
-            if not overwrite:
-                overwrite = prompts.confirm("Overwrite existing tracks?", default=False)
-
-        for index, (reference, album) in enumerate(albums, start=1):
-            logger.info("Downloading album %s of %s: %s", index, len(albums), reference)
-            try:
-                outputs = pipeline.download_album(album, destination, overwrite)
-            except ValueError as error:
-                logger.error("Cannot download album %s: %s", reference, error)
-                failed = True
-                continue
-            if len(outputs) != len(album.tracks):
-                failed = True
-        return 1 if failed else 0
 
 
 def _print_album_table(albums: Sequence[AlbumSummary]) -> None:
