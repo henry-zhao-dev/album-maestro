@@ -21,7 +21,7 @@
     "url": {
       "type": "string",
       "minLength": 1,
-      "description": "Shared source URL inherited by tracks without a URL."
+      "description": "Reference URL inherited by tracks without one."
     },
     "tracks": {
       "type": "array",

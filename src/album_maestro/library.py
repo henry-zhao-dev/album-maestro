@@ -1,7 +1,7 @@
 """Application-level operations for an SQLite music library."""
 
-from dataclasses import dataclass
-from pathlib import Path
+from dataclasses import dataclass, replace
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 from album_maestro import database
 from album_maestro.models import Album, AlbumSummary, Chapter
@@ -32,6 +32,12 @@ class Library:
         """Return the SQLite database containing the catalog."""
 
         return self.root / "album-maestro.db"
+
+    @property
+    def sources_path(self) -> Path:
+        """Return the directory containing library-relative source files."""
+
+        return self.root / "sources"
 
     def album_references(self) -> list[str]:
         """Return every album reference in database order."""
@@ -87,6 +93,7 @@ class Library:
             str: The generated lowercase kebab-case album reference.
         """
 
+        album = self._normalize_album_sources(album)
         try:
             return database.create_album(self.database_path, album, overwrite=overwrite)
         except database.DatabaseError as error:
@@ -103,6 +110,12 @@ class Library:
             )
             for key, value in fields.items()
         }
+
+        if "file_source" in normalized:
+            normalized["file_source"] = self._normalize_file_source(
+                normalized["file_source"]
+            )
+
         try:
             database.update_album(self.database_path, reference, **normalized)
         except database.DatabaseError as error:
@@ -125,6 +138,7 @@ class Library:
         composer: str | None = None,
         genre: str | None = None,
         url: str | None = None,
+        file_source: str | None = None,
         start_ms: int | None = None,
         end_ms: int | None = None,
         chapters: tuple[Chapter, ...] = (),
@@ -145,6 +159,7 @@ class Library:
                 composer=optional_text(composer),
                 genre=optional_text(genre),
                 url=optional_text(url),
+                file_source=self._normalize_file_source(file_source),
                 start_ms=start_ms,
                 end_ms=end_ms,
                 chapters=chapters,
@@ -161,6 +176,15 @@ class Library:
             key: optional_text(value) if isinstance(value, str) else value
             for key, value in fields.items()
         }
+
+        if "file_source" in normalized:
+            file_source = normalized["file_source"]
+            if file_source is not None and not isinstance(file_source, str):
+                raise LibraryError("file source must be text")
+            normalized["file_source"] = self._normalize_file_source(
+                file_source
+            )
+
         try:
             database.update_track(self.database_path, reference, position, **normalized)
         except database.DatabaseError as error:
@@ -181,6 +205,7 @@ class Library:
             raise LibraryError(f"{self.database_path} already exists")
 
         self.root.mkdir(parents=True, exist_ok=True)
+        self.sources_path.mkdir(exist_ok=True)
         try:
             return database.initialize(self.database_path, self.name)
         except database.DatabaseError as error:
@@ -191,6 +216,47 @@ class Library:
 
         if not self.database_path.is_file():
             raise LibraryError(f"database does not exist: {self.database_path}")
+
+    def _normalize_album_sources(self, album: Album) -> Album:
+        """Normalize all album and track source paths for storage."""
+
+        return replace(
+            album,
+            file_source=self._normalize_file_source(album.file_source),
+            tracks=tuple(
+                replace(
+                    track,
+                    file_source=self._normalize_file_source(track.file_source),
+                )
+                for track in album.tracks
+            ),
+        )
+
+    def _normalize_file_source(self, value: str | None) -> str | None:
+        """Validate and normalize one source path relative to the library."""
+
+        if value is None or not value.strip():
+            return None
+
+        normalized = value.strip().replace("\\", "/")
+        relative = PurePosixPath(normalized)
+        if relative.is_absolute() or PureWindowsPath(normalized).is_absolute():
+            raise LibraryError("file source must be relative to the library")
+
+        if relative.parts[:1] != ("sources",):
+            relative = PurePosixPath("sources", *relative.parts)
+
+        candidate = (self.root / Path(*relative.parts)).resolve(strict=False)
+        sources_root = self.sources_path.resolve(strict=False)
+        try:
+            candidate.relative_to(sources_root)
+        except ValueError as error:
+            raise LibraryError("file source must be inside the sources directory") from error
+
+        if not candidate.is_file():
+            raise LibraryError(f"file source does not exist: {normalized}")
+
+        return PurePosixPath(*candidate.relative_to(self.root.resolve()).parts).as_posix()
 
     @classmethod
     def load(cls, root: str | Path = ".") -> "Library":

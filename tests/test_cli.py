@@ -167,7 +167,8 @@ class ExportCommandTests(unittest.TestCase):
 
 class AlbumCommandTests(unittest.TestCase):
     @patch(
-        "builtins.input", side_effect=("Best of Romantic Era", "", "", "Classical", "")
+        "builtins.input",
+        side_effect=("Best of Romantic Era", "", "", "Classical", "", ""),
     )
     def test_create_supports_compilation_without_album_artist(self, _input):
         with tempfile.TemporaryDirectory() as temporary_dir:
@@ -192,6 +193,7 @@ class AlbumCommandTests(unittest.TestCase):
             "Johann Sebastian Bach",
             "Baroque",
             "https://example.com/recording",
+            "",
         ),
     )
     def test_create_writes_literal_metadata(self, input_mock):
@@ -213,7 +215,8 @@ class AlbumCommandTests(unittest.TestCase):
                 call("Album artist (optional): "),
                 call("Album composer (optional): "),
                 call("Album genre: "),
-                call("Album shared URL (optional): "),
+                call("Album reference URL (optional): "),
+                call("Album file source (filename under sources/, optional): "),
             ],
         )
         self.assertEqual(
@@ -229,7 +232,7 @@ class AlbumCommandTests(unittest.TestCase):
 
     @patch(
         "builtins.input",
-        side_effect=("Bach Album", "Bach", "Johann Sebastian Bach", "Classical", ""),
+        side_effect=("Bach Album", "Bach", "Johann Sebastian Bach", "Classical", "", ""),
     )
     def test_list_prints_albums_from_sqlite(self, _input):
         with tempfile.TemporaryDirectory() as temporary_dir:
@@ -282,8 +285,8 @@ class AlbumCommandTests(unittest.TestCase):
                 result = main(["show", "symphony", "--library", str(root)])
 
         self.assertEqual(result, 0)
-        self.assertIn("Title:        Symphony", output.getvalue())
-        self.assertIn("Artist:       Ludwig van Beethoven", output.getvalue())
+        self.assertIn("Title:          Symphony", output.getvalue())
+        self.assertIn("Artist:         Ludwig van Beethoven", output.getvalue())
         self.assertIn("First", output.getvalue())
         self.assertIn("Second", output.getvalue())
 
@@ -323,8 +326,10 @@ class AlbumCommandTests(unittest.TestCase):
             "",
             "",
             "",
+            "",
             "a",
             "Third",
+            "",
             "",
             "",
             "",
@@ -351,13 +356,17 @@ class AlbumCommandTests(unittest.TestCase):
         self.assertIsNone(album.tracks[-1].composer)
         self.assertIsNone(album.tracks[-1].genre)
         self.assertIsNone(album.tracks[-1].url)
+        self.assertIsNone(album.tracks[-1].file_source)
         resolved_track = album.requests()[-1]
         self.assertEqual(resolved_track.artist, "Ludwig van Beethoven")
         self.assertEqual(resolved_track.composer, "Ludwig van Beethoven")
         self.assertEqual(resolved_track.genre, "Classical")
         self.assertEqual(resolved_track.url, "https://example.com/full")
 
-    @patch("builtins.input", side_effect=("No Genre Album", "Artist", "", "", ""))
+    @patch(
+        "builtins.input",
+        side_effect=("No Genre Album", "Artist", "", "", "", ""),
+    )
     def test_create_rejects_missing_genre(self, _input):
         with tempfile.TemporaryDirectory() as temporary_dir:
             root = Path(temporary_dir) / "library"

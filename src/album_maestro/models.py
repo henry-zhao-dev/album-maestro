@@ -43,12 +43,15 @@ class AlbumTrack:
     """One output audio file declared inside an album.
 
     Metadata values override the corresponding album-level defaults when
-    present. Start and end timestamps refer to the selected source recording.
+    present. The file source follows the same album-default and track-override
+    pattern as the URL. Start and end timestamps refer to the selected source
+    recording.
     """
 
     title: str
     artist: str | None = None
     url: str | None = None
+    file_source: str | None = None
     composer: str | None = None
     genre: str | None = None
     start_ms: int | None = None
@@ -61,6 +64,7 @@ class AlbumTrack:
         object.__setattr__(self, "title", required_text(self.title, "track title"))
         object.__setattr__(self, "artist", optional_text(self.artist))
         object.__setattr__(self, "url", optional_text(self.url))
+        object.__setattr__(self, "file_source", optional_text(self.file_source))
         object.__setattr__(self, "composer", optional_text(self.composer))
         object.__setattr__(self, "genre", optional_text(self.genre))
         if (
@@ -132,6 +136,7 @@ class Album:
     genre: str
     composer: str | None = None
     url: str | None = None
+    file_source: str | None = None
 
     def __post_init__(self) -> None:
         """Normalize text and validate invariants for one album model."""
@@ -141,6 +146,7 @@ class Album:
         object.__setattr__(self, "composer", optional_text(self.composer))
         object.__setattr__(self, "genre", required_text(self.genre, "album genre"))
         object.__setattr__(self, "url", optional_text(self.url))
+        object.__setattr__(self, "file_source", optional_text(self.file_source))
         object.__setattr__(self, "tracks", tuple(self.tracks))
 
     def resolved_album_artist(self) -> str:
@@ -157,7 +163,7 @@ class Album:
         for index, track in enumerate(self.tracks, start=1):
             url = track.url or self.url
             if url is None:
-                raise ValueError(f"track {index} has no source URL")
+                raise ValueError(f"track {index} has no reference URL")
             requests.append(
                 TrackRequest(
                     url=url,

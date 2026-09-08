@@ -123,8 +123,10 @@ def create_album(
 
             cursor = connection.execute(
                 """
-                INSERT INTO albums (reference, title, artist, composer, genre, url)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO albums (
+                    reference, title, artist, composer, genre, url, file_source
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     reference,
@@ -133,6 +135,7 @@ def create_album(
                     album.composer,
                     album.genre,
                     album.url,
+                    album.file_source,
                 ),
             )
             album_id = cursor.lastrowid
@@ -144,9 +147,9 @@ def create_album(
                     """
                     INSERT INTO tracks (
                         album_id, position, title, artist, composer, genre, url,
-                        start_ms, end_ms
+                        file_source, start_ms, end_ms
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         album_id,
@@ -156,6 +159,7 @@ def create_album(
                         track.composer,
                         track.genre,
                         track.url,
+                        track.file_source,
                         track.start_ms,
                         track.end_ms,
                     ),
@@ -213,7 +217,7 @@ def get_album(path: str | Path, reference: str) -> Album:
             _configure(connection)
             album_row = connection.execute(
                 """
-                SELECT id, title, artist, composer, genre, url
+                SELECT id, title, artist, composer, genre, url, file_source
                 FROM albums
                 WHERE reference = ?
                 """,
@@ -224,7 +228,8 @@ def get_album(path: str | Path, reference: str) -> Album:
 
             track_rows = connection.execute(
                 """
-                SELECT id, title, artist, composer, genre, url, start_ms, end_ms
+                SELECT id, title, artist, composer, genre, url, file_source,
+                       start_ms, end_ms
                 FROM tracks
                 WHERE album_id = ?
                 ORDER BY position
@@ -245,6 +250,7 @@ def get_album(path: str | Path, reference: str) -> Album:
         composer=album_row[3],
         genre=album_row[4],
         url=album_row[5],
+        file_source=album_row[6],
         tracks=tuple(tracks),
     )
 
@@ -258,7 +264,7 @@ def update_album(path: str | Path, reference: str, **fields: Any) -> None:
         "reference",
         reference,
         fields,
-        {"title", "artist", "composer", "genre", "url"},
+        {"title", "artist", "composer", "genre", "url", "file_source"},
     )
 
 
@@ -285,6 +291,7 @@ def create_track(
     composer: str | None,
     genre: str | None,
     url: str | None,
+    file_source: str | None,
     start_ms: int | None,
     end_ms: int | None,
     chapters: tuple[Chapter, ...] = (),
@@ -303,9 +310,9 @@ def create_track(
                 """
                 INSERT INTO tracks (
                     album_id, position, title, artist, composer, genre, url,
-                    start_ms, end_ms
+                    file_source, start_ms, end_ms
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     album_id,
@@ -315,6 +322,7 @@ def create_track(
                     composer,
                     genre,
                     url,
+                    file_source,
                     start_ms,
                     end_ms,
                 ),
@@ -343,7 +351,16 @@ def update_track(
                 "tracks",
                 track_id,
                 fields,
-                {"title", "artist", "composer", "genre", "url", "start_ms", "end_ms"},
+                {
+                    "title",
+                    "artist",
+                    "composer",
+                    "genre",
+                    "url",
+                    "file_source",
+                    "start_ms",
+                    "end_ms",
+                },
             )
     except DatabaseError:
         raise
@@ -497,8 +514,9 @@ def _track_from_row(connection: sqlite3.Connection, row: tuple[Any, ...]) -> Alb
         composer=row[3],
         genre=row[4],
         url=row[5],
-        start_ms=row[6],
-        end_ms=row[7],
+        file_source=row[6],
+        start_ms=row[7],
+        end_ms=row[8],
         chapters=tuple(
             Chapter(start_ms=chapter[1], title=chapter[0], end_ms=chapter[2])
             for chapter in chapter_rows

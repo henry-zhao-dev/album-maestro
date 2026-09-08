@@ -114,6 +114,67 @@ class LoadLibraryTests(unittest.TestCase):
 
 
 class CatalogMutationTests(unittest.TestCase):
+    def test_stores_relative_file_sources(self):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir) / "library"
+            library = Library(root=root, name="Music")
+            library.initialize()
+            source = library.sources_path / "recording.m4a"
+            source.write_bytes(b"audio")
+
+            library.create_album(
+                Album(
+                    title="Album",
+                    artist="Artist",
+                    genre="Classical",
+                    file_source="sources/recording.m4a",
+                    tracks=(),
+                )
+            )
+            loaded = library.load_album("album")
+
+        self.assertEqual(loaded.file_source, "sources/recording.m4a")
+
+    def test_prepends_sources_to_bare_file_names(self):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir) / "library"
+            library = Library(root=root, name="Music")
+            library.initialize()
+            (library.sources_path / "recording.m4a").write_bytes(b"audio")
+
+            library.create_album(
+                Album(
+                    title="Album",
+                    artist="Artist",
+                    genre="Classical",
+                    file_source="recording.m4a",
+                    tracks=(),
+                )
+            )
+            loaded = library.load_album("album")
+
+        self.assertEqual(loaded.file_source, "sources/recording.m4a")
+
+    def test_rejects_file_sources_outside_sources_directory(self):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir) / "library"
+            library = Library(root=root, name="Music")
+            library.initialize()
+            (root / "outside.m4a").write_bytes(b"audio")
+
+            with self.assertRaisesRegex(
+                LibraryError, "inside the sources directory"
+            ):
+                library.create_album(
+                    Album(
+                        title="Album",
+                        artist="Artist",
+                        genre="Classical",
+                        file_source="../outside.m4a",
+                        tracks=(),
+                    )
+                )
+
     def test_creates_album_in_sqlite(self):
         with tempfile.TemporaryDirectory() as temporary_dir:
             root = Path(temporary_dir)

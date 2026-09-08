@@ -44,7 +44,7 @@ Album Maestro is an early-stage CLI rather than a production service. Album
 and track editing is being built incrementally through the CLI. The project is
 not affiliated with or endorsed by any media platform or FFmpeg.
 
-This repository does not include media files and its example source URLs are
+This repository does not include media files and its example reference URLs are
 placeholders. Album Maestro does not grant rights to third-party content or
 override the terms of any platform. You are responsible for the source
 references and media you provide, and for complying with applicable laws,
@@ -108,7 +108,8 @@ The command creates this layout:
 
 ```text
 ~/Music/album-maestro/
-└── album-maestro.db
+├── album-maestro.db
+└── sources/
 ```
 
 Create an album draft interactively:
@@ -118,8 +119,10 @@ album-maestro create --library ~/Music/album-maestro
 ```
 
 The command asks for the title, optional album artist, optional composer,
-genre, and optional shared URL. Leave the album artist blank for a compilation
-whose tracks have different artists. It creates an album record in SQLite.
+genre, optional reference URL, and optional local file source. Leave the album
+artist blank for a compilation whose tracks have different artists. Local file
+sources are stored as paths relative to the library, such as
+`recording.m4a`; Album Maestro stores it as `sources/recording.m4a`.
 
 List the catalog with:
 
@@ -145,11 +148,12 @@ The album fields are plain text:
   `album_artist` tag.
 - `composer` is an independent optional credit.
 - `genre` is explicit and required.
-- `url` is the default source URL.
+- `url` is the default reference URL.
+- `file_source` is the default local audio filename stored under `sources/`.
 
-Track-level artist, composer, genre, URL, timestamps, and chapters will be
-managed through the database-backed editing workflow as those commands are
-implemented.
+Track-level artist, composer, genre, reference URL, local file source, timestamps, and
+chapters are managed through the database-backed editing workflow. A track’s
+local file source overrides the album-level default when provided.
 
 List the catalog:
 
