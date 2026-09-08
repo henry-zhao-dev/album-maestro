@@ -64,6 +64,9 @@ CREATE INDEX IF NOT EXISTS albums_composer_idx ON albums (composer);
 CREATE INDEX IF NOT EXISTS albums_genre_idx ON albums (genre);
 """
 
+_INITIAL_SCHEMA_VERSION = 1
+_CURRENT_SCHEMA_VERSION = 2
+
 
 def initialize(path: str | Path, name: str) -> Path:
     """Create and initialize a new Album Maestro database."""
@@ -75,7 +78,7 @@ def initialize(path: str | Path, name: str) -> Path:
     try:
         with sqlite3.connect(database_path) as connection:
             _configure(connection)
-            connection.executescript(SCHEMA)
+            _ensure_schema(connection)
             connection.execute("INSERT INTO library (id, name) VALUES (1, ?)", (name,))
     except (OSError, sqlite3.Error) as error:
         raise DatabaseError(str(error)) from error
@@ -389,9 +392,30 @@ def _configure(connection: sqlite3.Connection) -> None:
 
 
 def _ensure_schema(connection: sqlite3.Connection) -> None:
-    """Apply additive schema changes to an existing database."""
+    """Create the base schema and apply incremental migrations."""
 
     connection.executescript(SCHEMA)
+    _migrate_schema(connection)
+
+
+def _migrate_schema(connection: sqlite3.Connection) -> None:
+    """Apply incremental schema migrations."""
+    version = connection.execute("PRAGMA user_version").fetchone()[0]
+
+    if version < _INITIAL_SCHEMA_VERSION:
+        # Existing databases predate explicit versioning.
+        version = _INITIAL_SCHEMA_VERSION
+
+    if version < _CURRENT_SCHEMA_VERSION:
+        connection.execute(
+            "ALTER TABLE albums ADD COLUMN file_source TEXT"
+        )
+        connection.execute(
+            "ALTER TABLE tracks ADD COLUMN file_source TEXT"
+        )
+        connection.execute(
+            f"PRAGMA user_version = {_CURRENT_SCHEMA_VERSION}"
+        )
 
 
 def _album_summary_rows(

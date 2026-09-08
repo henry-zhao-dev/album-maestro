@@ -22,6 +22,24 @@ class InitializeLibraryTests(unittest.TestCase):
                     connection.execute("SELECT name FROM library").fetchone(),
                     ("My Music",),
                 )
+                self.assertEqual(
+                    connection.execute("PRAGMA user_version").fetchone(),
+                    (2,),
+                )
+                self.assertIn(
+                    "file_source",
+                    {
+                        row[1]
+                        for row in connection.execute("PRAGMA table_info(albums)")
+                    },
+                )
+                self.assertIn(
+                    "file_source",
+                    {
+                        row[1]
+                        for row in connection.execute("PRAGMA table_info(tracks)")
+                    },
+                )
 
     def test_refuses_to_replace_existing_database(self):
         with tempfile.TemporaryDirectory() as temporary_dir:
@@ -88,6 +106,10 @@ class LoadLibraryTests(unittest.TestCase):
                     connection.execute(
                         "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'chapters'"
                     ).fetchone()
+                )
+                self.assertEqual(
+                    connection.execute("PRAGMA user_version").fetchone(),
+                    (2,),
                 )
 
 
