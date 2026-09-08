@@ -1,4 +1,4 @@
-"""Parse values from declarative album specifications."""
+"""Parse and format values from declarative album specifications."""
 
 import math
 from collections.abc import Mapping
@@ -11,7 +11,8 @@ __all__ = [
     "optional_string",
     "optional_timestamp",
     "required_string",
-    "parse_timestamp"
+    "parse_timestamp",
+    "format_timestamp",
 ]
 
 
@@ -63,3 +64,18 @@ def parse_timestamp(value: str) -> int:
         numbers.insert(0, 0.0)
     hours, minutes, seconds = numbers
     return round((hours * 3600 + minutes * 60 + seconds) * 1000)
+
+
+def format_timestamp(milliseconds: int | None) -> str:
+    """Format milliseconds, displaying a missing value as an em dash."""
+
+    if milliseconds is None:
+        return "—"
+    total_seconds, remainder = divmod(milliseconds, 1000)
+    minutes, seconds = divmod(total_seconds, 60)
+    hours, minutes = divmod(minutes, 60)
+    if hours:
+        prefix = f"{hours}:{minutes:02}:{seconds:02}"
+    else:
+        prefix = f"{minutes}:{seconds:02}"
+    return f"{prefix}.{remainder:03}" if remainder else prefix

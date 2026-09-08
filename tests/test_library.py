@@ -45,7 +45,9 @@ class LoadLibraryTests(unittest.TestCase):
             music_library = Library.load(root)
 
         self.assertEqual(music_library.root, root.resolve())
-        self.assertEqual(music_library.database_path, root.resolve() / "album-maestro.db")
+        self.assertEqual(
+            music_library.database_path, root.resolve() / "album-maestro.db"
+        )
         self.assertEqual(music_library.downloads_dir, root.resolve() / "downloads")
 
     def test_rejects_incomplete_library_structure(self):
@@ -62,8 +64,7 @@ class LoadLibraryTests(unittest.TestCase):
             (root / "downloads").mkdir()
             database_path = root / "album-maestro.db"
             with sqlite3.connect(database_path) as connection:
-                connection.executescript(
-                    """
+                connection.executescript("""
                     CREATE TABLE library (id INTEGER PRIMARY KEY, name TEXT NOT NULL);
                     CREATE TABLE albums (
                         id INTEGER PRIMARY KEY,
@@ -81,8 +82,7 @@ class LoadLibraryTests(unittest.TestCase):
                         title TEXT NOT NULL
                     );
                     INSERT INTO library (id, name) VALUES (1, 'Music');
-                    """
-                )
+                    """)
 
             Library.load(root)
 
@@ -153,7 +153,9 @@ class CatalogMutationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_dir:
             library = Library(root=Path(temporary_dir), name="Music")
             library.initialize()
-            library.create_album(Album(title="Album", artist="Artist", genre="Pop", tracks=()))
+            library.create_album(
+                Album(title="Album", artist="Artist", genre="Pop", tracks=())
+            )
 
             with self.assertRaisesRegex(LibraryError, "already exists"):
                 library.create_album(
@@ -192,7 +194,9 @@ class CatalogMutationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_dir:
             library = Library(root=Path(temporary_dir), name="Music")
             library.initialize()
-            library.create_album(Album(title="Album", artist="Artist", genre="Pop", tracks=()))
+            library.create_album(
+                Album(title="Album", artist="Artist", genre="Pop", tracks=())
+            )
             library.create_track("album", title="Stale Track")
 
             replacement = Album(
@@ -212,7 +216,9 @@ class CatalogMutationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_dir:
             library = Library(root=Path(temporary_dir), name="Music")
             library.initialize()
-            library.create_album(Album(title="Album", artist="Artist", genre="Pop", tracks=()))
+            library.create_album(
+                Album(title="Album", artist="Artist", genre="Pop", tracks=())
+            )
             library.create_track("album", title="Existing Track")
 
             with self.assertRaisesRegex(ValueError, "title"):
@@ -236,7 +242,9 @@ class CatalogMutationTests(unittest.TestCase):
             root = Path(temporary_dir)
             library = Library(root=root, name="Music")
             library.initialize()
-            library.create_album(Album(title="Album", artist="Artist", genre="Pop", tracks=()))
+            library.create_album(
+                Album(title="Album", artist="Artist", genre="Pop", tracks=())
+            )
             library.create_track(
                 "album",
                 title="Track",

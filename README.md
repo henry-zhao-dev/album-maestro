@@ -126,7 +126,7 @@ The command creates this layout:
 Create an album draft interactively:
 
 ```shell
-album-maestro album create --library ~/Music/album-maestro
+album-maestro create --library ~/Music/album-maestro
 ```
 
 The command asks for the title, optional album artist, optional composer,
@@ -136,7 +136,7 @@ whose tracks have different artists. It creates an album record in SQLite.
 List the catalog with:
 
 ```shell
-album-maestro album list --library ~/Music/album-maestro
+album-maestro list --library ~/Music/album-maestro
 ```
 
 ## SQLite catalog
@@ -148,7 +148,7 @@ to edit or keep synchronized.
 Create an album through the CLI:
 
 ```shell
-album-maestro album create --library ~/Music/album-maestro
+album-maestro create --library ~/Music/album-maestro
 ```
 
 The album fields are plain text:
@@ -166,7 +166,7 @@ implemented.
 List the catalog:
 
 ```shell
-album-maestro album list --library ~/Music/album-maestro
+album-maestro list --library ~/Music/album-maestro
 ```
 
 The list command queries SQLite and displays each album’s reference, title,
@@ -215,23 +215,23 @@ unless `--overwrite` is passed.
 Inspect the catalog and one album with:
 
 ```shell
-album-maestro album list --library ~/Music/album-maestro
-album-maestro album search --artist Beethoven --library ~/Music/album-maestro
-album-maestro album show beethoven-symphony-no-5 \
+album-maestro list --library ~/Music/album-maestro
+album-maestro search --artist Beethoven --library ~/Music/album-maestro
+album-maestro show beethoven-symphony-no-5 \
   --library ~/Music/album-maestro
 ```
 
 Edit album metadata and manage tracks interactively:
 
 ```shell
-album-maestro album edit beethoven-symphony-no-5 \
+album-maestro edit beethoven-symphony-no-5 \
   --library ~/Music/album-maestro
 ```
 
 Delete an album from the catalog:
 
 ```shell
-album-maestro album delete beethoven-symphony-no-5 \
+album-maestro delete beethoven-symphony-no-5 \
   --library ~/Music/album-maestro
 ```
 
@@ -243,7 +243,7 @@ downloaded audio files are not removed.
 Download one album by its reference:
 
 ```shell
-album-maestro album download beethoven-symphony-no-5 \
+album-maestro download beethoven-symphony-no-5 \
   --library ~/Music/album-maestro
 ```
 
@@ -251,9 +251,9 @@ Download several albums by passing multiple references, or download every album
 with `--all`:
 
 ```shell
-album-maestro album download beethoven-symphony-no-5 classical-favorites \
+album-maestro download beethoven-symphony-no-5 classical-favorites \
   --library ~/Music/album-maestro
-album-maestro album download --all --library ~/Music/album-maestro
+album-maestro download --all --library ~/Music/album-maestro
 ```
 
 Without `--overwrite`, existing track files are listed and Album Maestro asks

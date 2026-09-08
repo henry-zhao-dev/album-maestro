@@ -4,7 +4,6 @@ from dataclasses import dataclass
 
 from album_maestro.text import optional_text, required_text
 
-
 VARIOUS_ARTISTS = "Various Artists"
 
 

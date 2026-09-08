@@ -218,7 +218,9 @@ def _track_output_path(
     try:
         output.resolve().relative_to(destination)
     except ValueError as error:
-        raise PipelineError("track output path escapes the downloads directory") from error
+        raise PipelineError(
+            "track output path escapes the downloads directory"
+        ) from error
     return output
 
 

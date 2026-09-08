@@ -94,9 +94,7 @@ class Library:
         """
 
         try:
-            return database.create_album(
-                self.database_path, album, overwrite=overwrite
-            )
+            return database.create_album(self.database_path, album, overwrite=overwrite)
         except database.DatabaseError as error:
             raise LibraryError(str(error)) from error
 
@@ -104,9 +102,11 @@ class Library:
         """Update album metadata in the SQLite catalog."""
 
         normalized = {
-            key: required_text(value, f"album {key}", error_type=LibraryError)
-            if key in {"title", "genre"}
-            else optional_text(value)
+            key: (
+                required_text(value, f"album {key}", error_type=LibraryError)
+                if key in {"title", "genre"}
+                else optional_text(value)
+            )
             for key, value in fields.items()
         }
         try:
@@ -168,9 +168,7 @@ class Library:
             for key, value in fields.items()
         }
         try:
-            database.update_track(
-                self.database_path, reference, position, **normalized
-            )
+            database.update_track(self.database_path, reference, position, **normalized)
         except database.DatabaseError as error:
             raise LibraryError(str(error)) from error
 

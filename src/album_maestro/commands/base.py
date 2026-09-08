@@ -1,8 +1,13 @@
-"""Contract shared by top-level commands and nested command operations."""
+"""Contract shared by top-level commands."""
 
 import argparse
+import logging
 from abc import ABC, abstractmethod
 from typing import ClassVar
+
+from album_maestro.library import Library, LibraryError
+
+logger = logging.getLogger(__name__)
 
 
 class Command(ABC):
@@ -22,3 +27,36 @@ class Command(ABC):
     @abstractmethod
     def run(self, args: argparse.Namespace) -> int:
         """Run this command using parsed arguments."""
+
+
+class LibraryCommand(Command):
+    """Base for commands that operate on an existing music library."""
+
+    def configure(self, parser: argparse.ArgumentParser) -> None:
+        """Add the shared library option and this command's arguments."""
+
+        parser.add_argument(
+            "--library",
+            default=".",
+            metavar="DIRECTORY",
+            help="Library directory (default: current directory)",
+        )
+        self.configure_arguments(parser)
+
+    @abstractmethod
+    def configure_arguments(self, parser: argparse.ArgumentParser) -> None:
+        """Add this library command's command-specific arguments."""
+
+    def run(self, args: argparse.Namespace) -> int:
+        """Load the selected library, logging a user-facing failure."""
+
+        try:
+            library = Library.load(args.library)
+        except LibraryError as error:
+            logger.error("Cannot load library: %s", error)
+            return 1
+        return self.run_library(library, args)
+
+    @abstractmethod
+    def run_library(self, library: Library, args: argparse.Namespace) -> int:
+        """Run commands in the given library."""
