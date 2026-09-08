@@ -6,6 +6,7 @@ from album_maestro.specs.parsing import (
     optional_timestamp,
     required_string,
     parse_timestamp,
+    format_timestamp,
 )
 from album_maestro.specs.catalog import (
     catalog_reference,
@@ -25,6 +26,7 @@ __all__ = [
     "optional_string",
     "optional_timestamp",
     "parse_timestamp",
+    "format_timestamp",
     "required_string",
     "reference_from_text",
     "set_json_fields",

@@ -128,8 +128,8 @@ class ShowCommand(LibraryCommand):
         for position, track in enumerate(album.tracks, start=1):
             print(
                 f"{position:>3}  {track.title:<42} "
-                f"{_format_timestamp(track.start_ms):<8} "
-                f"{_format_timestamp(track.end_ms)}"
+                f"{specs.format_timestamp(track.start_ms):<8} "
+                f"{specs.format_timestamp(track.end_ms)}"
             )
         return 0
 
@@ -165,16 +165,94 @@ class EditCommand(LibraryCommand):
                 return 0
             try:
                 if action in {"a", "add"}:
-                    _add_track(library, args.reference)
+                    self._add_track(library, args.reference)
                 elif action in {"e", "edit"}:
-                    _edit_track(library, args.reference)
+                    self._edit_track(library, args.reference)
                 elif action in {"r", "remove"}:
-                    _remove_track(library, args.reference)
+                    self._remove_track(library, args.reference)
                 else:
                     print("Please choose add, edit, remove, or done.")
             except (LibraryError, ValueError) as error:
                 logger.error("Cannot edit track: %s", error)
                 return 1
+
+    def _add_track(self, library: Library, reference: str) -> None:
+        """Prompt for and append one track."""
+
+        album = library.load_album(reference)
+        title = prompts.text("Track title")
+        artist = prompts.override_text("Track artist (optional)", album.artist)
+        composer = prompts.override_text("Track composer (optional)", album.composer)
+        genre = prompts.override_text("Track genre (optional)", album.genre)
+        url = prompts.override_text("Track URL (optional)", album.url)
+        start_ms = self._prompt_timestamp("Track start (optional)")
+        end_ms = self._prompt_timestamp("Track end (optional)")
+        position = library.create_track(
+            reference,
+            title=title,
+            artist=artist,
+            composer=composer,
+            genre=genre,
+            url=url,
+            start_ms=start_ms,
+            end_ms=end_ms,
+        )
+        print(f"Added track {position}.")
+
+    def _edit_track(self, library: Library, reference: str) -> None:
+        """Prompt for and update one existing track."""
+
+        album = library.load_album(reference)
+        if not album.tracks:
+            print("No tracks found.")
+            return
+        position = prompts.bounded_number("Track number", 1, len(album.tracks))
+        track = album.tracks[position - 1]
+        library.update_track(
+            reference,
+            position,
+            title=prompts.text("Track title", track.title),
+            artist=prompts.override_text(
+                "Track artist (optional)", track.artist or album.artist
+            ),
+            composer=prompts.override_text(
+                "Track composer (optional)", track.composer or album.composer
+            ),
+            genre=prompts.override_text(
+                "Track genre (optional)", track.genre or album.genre
+            ),
+            url=prompts.override_text("Track URL (optional)", track.url or album.url),
+            start_ms=self._prompt_timestamp("Track start (optional)", track.start_ms),
+            end_ms=self._prompt_timestamp("Track end (optional)", track.end_ms),
+        )
+        print(f"Updated track {position}.")
+
+    @staticmethod
+    def _remove_track(library: Library, reference: str) -> None:
+        """Prompt for and delete one existing track."""
+
+        album = library.load_album(reference)
+        if not album.tracks:
+            print("No tracks found.")
+            return
+        position = prompts.bounded_number("Track number", 1, len(album.tracks))
+        if prompts.confirm(f"Remove track {position}?", default=False):
+            library.delete_track(reference, position)
+            print(f"Removed track {position}.")
+
+    @staticmethod
+    def _prompt_timestamp(label: str, default_ms: int | None = None) -> int | None:
+        """Prompt for a timestamp, retrying malformed values."""
+
+        default = specs.format_timestamp(default_ms) if default_ms is not None else None
+        while True:
+            value = prompts.text(label, default)
+            if not value:
+                return None
+            try:
+                return specs.parse_timestamp(value)
+            except ValueError:
+                print("Please enter a timestamp such as 1:23 or 1:02:03.")
 
 
 class DeleteCommand(LibraryCommand):
@@ -314,98 +392,3 @@ def _print_album_table(albums: Sequence[AlbumSummary]) -> None:
     print("  ".join("-" * width for width in widths))
     for row in rows:
         print("  ".join(value.ljust(widths[index]) for index, value in enumerate(row)))
-
-
-def _add_track(music_library: Library, reference: str) -> None:
-    """Prompt for and append one track."""
-
-    album = music_library.load_album(reference)
-    title = prompts.text("Track title")
-    artist = prompts.override_text("Track artist (optional)", album.artist)
-    composer = prompts.override_text("Track composer (optional)", album.composer)
-    genre = prompts.override_text("Track genre (optional)", album.genre)
-    url = prompts.override_text("Track URL (optional)", album.url)
-    start_ms = _prompt_timestamp("Track start (optional)")
-    end_ms = _prompt_timestamp("Track end (optional)")
-    position = music_library.create_track(
-        reference,
-        title=title,
-        artist=artist,
-        composer=composer,
-        genre=genre,
-        url=url,
-        start_ms=start_ms,
-        end_ms=end_ms,
-    )
-    print(f"Added track {position}.")
-
-
-def _edit_track(music_library: Library, reference: str) -> None:
-    """Prompt for and update one existing track."""
-
-    album = music_library.load_album(reference)
-    if not album.tracks:
-        print("No tracks found.")
-        return
-    position = prompts.bounded_number("Track number", 1, len(album.tracks))
-    track = album.tracks[position - 1]
-    music_library.update_track(
-        reference,
-        position,
-        title=prompts.text("Track title", track.title),
-        artist=prompts.override_text(
-            "Track artist (optional)", track.artist or album.artist
-        ),
-        composer=prompts.override_text(
-            "Track composer (optional)", track.composer or album.composer
-        ),
-        genre=prompts.override_text(
-            "Track genre (optional)", track.genre or album.genre
-        ),
-        url=prompts.override_text("Track URL (optional)", track.url or album.url),
-        start_ms=_prompt_timestamp("Track start (optional)", track.start_ms),
-        end_ms=_prompt_timestamp("Track end (optional)", track.end_ms),
-    )
-    print(f"Updated track {position}.")
-
-
-def _remove_track(music_library: Library, reference: str) -> None:
-    """Prompt for and delete one existing track."""
-
-    album = music_library.load_album(reference)
-    if not album.tracks:
-        print("No tracks found.")
-        return
-    position = prompts.bounded_number("Track number", 1, len(album.tracks))
-    if prompts.confirm(f"Remove track {position}?", default=False):
-        music_library.delete_track(reference, position)
-        print(f"Removed track {position}.")
-
-
-def _prompt_timestamp(label: str, default_ms: int | None = None) -> int | None:
-    """Prompt for a timestamp, retrying malformed values."""
-
-    default = _format_timestamp(default_ms) if default_ms is not None else None
-    while True:
-        value = prompts.text(label, default)
-        if not value:
-            return None
-        try:
-            return specs.parse_timestamp(value)
-        except ValueError:
-            print("Please enter a timestamp such as 1:23 or 1:02:03.")
-
-
-def _format_timestamp(value_ms: int | None) -> str:
-    """Format milliseconds for human-readable CLI output."""
-
-    if value_ms is None:
-        return "—"
-    total_seconds, milliseconds = divmod(value_ms, 1000)
-    minutes, seconds = divmod(total_seconds, 60)
-    hours, minutes = divmod(minutes, 60)
-    if hours:
-        return f"{hours}:{minutes:02}:{seconds:02}"
-    if milliseconds:
-        return f"{minutes}:{seconds:02}.{milliseconds:03}"
-    return f"{minutes}:{seconds:02}"

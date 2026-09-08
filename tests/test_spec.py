@@ -2,7 +2,7 @@ import unittest
 
 from album_maestro.specs import SpecError
 from album_maestro.specs.catalog import _parse_album, dump_album
-from album_maestro.specs.parsing import parse_timestamp
+from album_maestro.specs.parsing import format_timestamp, parse_timestamp
 
 
 class AlbumTests(unittest.TestCase):
@@ -203,6 +203,11 @@ class AlbumTests(unittest.TestCase):
 
 
 class TimestampTests(unittest.TestCase):
+    def test_formats_timestamps_for_specs_and_cli(self):
+        self.assertEqual(format_timestamp(1_250), "0:01.250")
+        self.assertEqual(format_timestamp(3_723_000), "1:02:03")
+        self.assertEqual(format_timestamp(None), "—")
+
     def test_supported_timestamp_forms(self):
         self.assertEqual(parse_timestamp("1.25"), 1_250)
         self.assertEqual(parse_timestamp("02:03.5"), 123_500)

@@ -9,6 +9,7 @@ from typing import Any, cast
 from album_maestro.models import Album, AlbumTrack, Chapter
 from album_maestro.specs.errors import SpecError
 from album_maestro.specs.parsing import (
+    format_timestamp,
     optional_string,
     optional_timestamp,
     required_string,
@@ -140,9 +141,9 @@ def _track_data(track: AlbumTrack) -> dict[str, object]:
         if value is not None:
             data[key] = value
     if track.start_ms is not None:
-        data["start"] = _format_timestamp(track.start_ms)
+        data["start"] = format_timestamp(track.start_ms)
     if track.end_ms is not None:
-        data["end"] = _format_timestamp(track.end_ms)
+        data["end"] = format_timestamp(track.end_ms)
     if track.chapters:
         data["chapters"] = [_chapter_data(chapter) for chapter in track.chapters]
     return data
@@ -151,20 +152,7 @@ def _track_data(track: AlbumTrack) -> dict[str, object]:
 def _chapter_data(chapter: Chapter) -> dict[str, object]:
     """Convert one chapter marker to its JSON specification shape."""
 
-    data: dict[str, object] = {"start": _format_timestamp(chapter.start_ms)}
+    data: dict[str, object] = {"start": format_timestamp(chapter.start_ms)}
     if chapter.title is not None:
         data["title"] = chapter.title
     return data
-
-
-def _format_timestamp(milliseconds: int) -> str:
-    """Format milliseconds using the timestamp syntax accepted by the schema."""
-
-    total_seconds, remainder = divmod(milliseconds, 1000)
-    minutes, seconds = divmod(total_seconds, 60)
-    hours, minutes = divmod(minutes, 60)
-    if hours:
-        prefix = f"{hours}:{minutes:02}:{seconds:02}"
-    else:
-        prefix = f"{minutes}:{seconds:02}"
-    return f"{prefix}.{remainder:03}" if remainder else prefix
