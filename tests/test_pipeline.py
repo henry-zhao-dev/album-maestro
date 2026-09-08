@@ -6,8 +6,7 @@ from unittest.mock import patch
 from album_maestro.models import Chapter, TrackRequest
 from album_maestro.pipeline import (
     PipelineError,
-    _download_track,
-    _download_tracks,
+    _create_track,
     _resolve_chapters,
     _resolve_time_range,
     _track_output_path,
@@ -20,20 +19,20 @@ class PipelineTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as output_dir:
             with self.assertRaisesRegex(PipelineError, "path separator"):
-                _track_output_path(track, Path(output_dir))
+                _track_output_path(track, Path(output_dir), ".m4a")
 
     def test_output_path_rejects_windows_path_separators(self):
         track = _track_request(title="folder\\outside")
 
         with tempfile.TemporaryDirectory() as output_dir:
             with self.assertRaisesRegex(PipelineError, "path separator"):
-                _track_output_path(track, Path(output_dir))
+                _track_output_path(track, Path(output_dir), ".m4a")
 
     def test_output_path_preserves_safe_display_names(self):
         track = _track_request(title="Track 01 — Finale")
 
         with tempfile.TemporaryDirectory() as output_dir:
-            result = _track_output_path(track, Path(output_dir))
+            result = _track_output_path(track, Path(output_dir), ".m4a")
 
         self.assertEqual(result.name, "Track 01 — Finale.m4a")
         self.assertEqual(result.parent.name, "Album")
@@ -49,15 +48,7 @@ class PipelineTests(unittest.TestCase):
             (destination / "Artist").symlink_to(outside_dir, target_is_directory=True)
 
             with self.assertRaisesRegex(PipelineError, "escapes"):
-                _track_output_path(track, destination)
-
-    def test_download_tracks_rejects_duplicate_output_paths(self):
-        first = _track_request(title="Same")
-        second = _track_request(title="Same", url="https://example.com/other")
-
-        with tempfile.TemporaryDirectory() as output_dir:
-            with self.assertRaisesRegex(PipelineError, "same output path"):
-                _download_tracks((first, second), output_dir)
+                _track_output_path(track, destination, ".m4a")
 
     @patch("album_maestro.pipeline.shutil.move")
     @patch("album_maestro.pipeline.shutil.copy2")
@@ -71,10 +62,8 @@ class PipelineTests(unittest.TestCase):
     )
     @patch("album_maestro.pipeline.audio.trim_audio", return_value="trimmed.m4a")
     @patch("album_maestro.pipeline.audio.audio_duration_ms", return_value=20_000)
-    @patch("album_maestro.pipeline.downloader.download_audio")
     def test_runs_processing_stages_in_order(
         self,
-        download_audio,
         audio_duration_ms,
         trim_audio,
         add_metadata,
@@ -83,7 +72,10 @@ class PipelineTests(unittest.TestCase):
         move,
     ):
         with tempfile.TemporaryDirectory() as output_dir:
-            download_audio.return_value = Path(output_dir) / "downloaded.m4a"
+            root = Path(output_dir)
+            source = root / "source.m4a"
+            destination = root / "library"
+            work_dir = root / "work"
             track = TrackRequest(
                 url="https://example.com",
                 title="Track",
@@ -95,93 +87,18 @@ class PipelineTests(unittest.TestCase):
                 chapters=(Chapter(1_000, "Opening"),),
             )
 
-            result = _download_track(track, output_dir)
+            result = _create_track(track, source, destination, work_dir)
 
         expected = (
-            Path(output_dir).resolve() / "Various Artists" / "Album" / "Track.m4a"
+            destination.resolve() / "Various Artists" / "Album" / "Track.m4a"
         )
         self.assertEqual(result, expected)
-        download_audio.assert_called_once()
-        copy2.assert_called_once()
+        copy2.assert_called_once_with(source, work_dir / "Track.m4a")
         audio_duration_ms.assert_called_once()
         trim_audio.assert_called_once()
         add_metadata.assert_called_once()
         add_chapters.assert_called_once()
         move.assert_called_once_with("chaptered.m4a", result)
-
-    @patch("album_maestro.pipeline._create_track")
-    @patch("album_maestro.pipeline.downloader.download_audio")
-    def test_downloads_a_shared_source_once(self, download_audio, create_track):
-        source = Path("source.m4a")
-        download_audio.return_value = source
-        create_track.side_effect = [Path("first.m4a"), Path("second.m4a")]
-        tracks = (
-            _track_request(title="First", url="https://example.com/shared"),
-            _track_request(title="Second", url="https://example.com/shared"),
-        )
-
-        with (
-            tempfile.TemporaryDirectory() as output_dir,
-            self.assertLogs("album_maestro.pipeline", level="INFO") as logs,
-        ):
-            outputs = _download_tracks(tracks, output_dir)
-
-        self.assertEqual(outputs, [Path("first.m4a"), Path("second.m4a")])
-        download_audio.assert_called_once()
-        self.assertEqual(
-            [call.args[1] for call in create_track.call_args_list],
-            [source, source],
-        )
-        messages = [record.getMessage() for record in logs.records]
-        self.assertTrue(messages[0].startswith("Downloading source 1/1"))
-        self.assertEqual(messages[2], "Creating track 1/2: First")
-        self.assertEqual(messages[4], "Creating track 2/2: Second")
-
-    @patch("album_maestro.pipeline._create_track")
-    @patch("album_maestro.pipeline.downloader.download_audio")
-    def test_skips_an_existing_track_without_overwrite(
-        self, download_audio, create_track
-    ):
-        with tempfile.TemporaryDirectory() as output_dir:
-            track = _track_request()
-            existing = Path(output_dir).resolve() / "Artist" / "Album" / "Track.m4a"
-            existing.parent.mkdir(parents=True)
-            existing.write_text("existing", encoding="utf-8")
-
-            result = _download_track(track, output_dir)
-
-            self.assertEqual(result, existing)
-            self.assertEqual(existing.read_text(encoding="utf-8"), "existing")
-        download_audio.assert_not_called()
-        create_track.assert_not_called()
-
-    @patch(
-        "album_maestro.pipeline.audio.add_metadata",
-        side_effect=lambda source, output, metadata: source,
-    )
-    @patch("album_maestro.pipeline.audio.audio_duration_ms", return_value=10_000)
-    @patch("album_maestro.pipeline.downloader.download_audio")
-    def test_overwrites_an_existing_track(
-        self, download_audio, audio_duration_ms, add_metadata
-    ):
-        with tempfile.TemporaryDirectory() as output_dir:
-            root = Path(output_dir).resolve()
-            source = root / "source.m4a"
-            source.write_text("replacement", encoding="utf-8")
-            download_audio.return_value = source
-
-            track = _track_request()
-            existing = root / "Artist" / "Album" / "Track.m4a"
-            existing.parent.mkdir(parents=True)
-            existing.write_text("existing", encoding="utf-8")
-
-            result = _download_track(track, output_dir, overwrite=True)
-
-            self.assertEqual(result, existing)
-            self.assertEqual(existing.read_text(encoding="utf-8"), "replacement")
-        download_audio.assert_called_once()
-        audio_duration_ms.assert_called_once()
-        add_metadata.assert_called_once()
 
     def test_resolves_default_time_range(self):
         self.assertEqual(_resolve_time_range(_track_request(), 10_000), (0, 10_000))
