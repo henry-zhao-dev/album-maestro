@@ -69,6 +69,28 @@ class ImportCommandTests(unittest.TestCase):
         self.assertEqual(album.tracks[0].start_ms, 1_000)
         self.assertEqual(album.tracks[0].end_ms, 5_000)
 
+    def test_imports_album_and_track_sources_into_sqlite(self):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir) / "library"
+            library = Library(root=root, name="Music")
+            library.initialize()
+            (library.sources_path / "album.m4a").write_bytes(b"album audio")
+            (library.sources_path / "opening.m4a").write_bytes(b"track audio")
+            source = Path(temporary_dir) / "album.json"
+            source.write_text(
+                '{"title":"Imported Album","genre":"Classical",'
+                '"file_source":"album.m4a","tracks":[{"title":"Opening",'
+                '"file_source":"opening.m4a"}]}',
+                encoding="utf-8",
+            )
+
+            result = main(["import", "--json", str(source), "--library", str(root)])
+            album = Library.load(root).load_album("imported-album")
+
+        self.assertEqual(result, 0)
+        self.assertEqual(album.file_source, "sources/album.m4a")
+        self.assertEqual(album.tracks[0].file_source, "sources/opening.m4a")
+
     def test_import_directory_overwrites_existing_album(self):
         with tempfile.TemporaryDirectory() as temporary_dir:
             root = Path(temporary_dir) / "library"
@@ -137,6 +159,49 @@ class ExportCommandTests(unittest.TestCase):
         self.assertEqual(exported["title"], "Album")
         self.assertEqual(exported["tracks"][0]["start"], "0:01")
         self.assertEqual(exported["tracks"][0]["end"], "0:05")
+
+    def test_exports_album_and_track_sources(self):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir) / "library"
+            library = Library(root=root, name="Music")
+            library.initialize()
+            (library.sources_path / "album.m4a").write_bytes(b"album audio")
+            (library.sources_path / "opening.m4a").write_bytes(b"track audio")
+            library.create_album(
+                Album(
+                    title="Album",
+                    artist=None,
+                    genre="Classical",
+                    url="https://example.com/album",
+                    file_source="album.m4a",
+                    tracks=(
+                        AlbumTrack(
+                            title="Opening",
+                            url="https://example.com/opening",
+                            file_source="opening.m4a",
+                        ),
+                    ),
+                )
+            )
+            output = Path(temporary_dir) / "album.json"
+
+            result = main(
+                [
+                    "export",
+                    "album",
+                    "--json",
+                    str(output),
+                    "--library",
+                    str(root),
+                ]
+            )
+            exported = json.loads(output.read_text(encoding="utf-8"))
+
+        self.assertEqual(result, 0)
+        self.assertEqual(exported["url"], "https://example.com/album")
+        self.assertEqual(exported["file_source"], "sources/album.m4a")
+        self.assertEqual(exported["tracks"][0]["url"], "https://example.com/opening")
+        self.assertEqual(exported["tracks"][0]["file_source"], "sources/opening.m4a")
 
     def test_exports_all_albums_to_a_directory(self):
         with tempfile.TemporaryDirectory() as temporary_dir:

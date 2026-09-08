@@ -59,6 +59,8 @@ def dump_album(album: Album) -> dict[str, object]:
     data["genre"] = album.genre
     if album.url is not None:
         data["url"] = album.url
+    if album.file_source is not None:
+        data["file_source"] = album.file_source
     data["tracks"] = [_track_data(track) for track in album.tracks]
     return data
 
@@ -82,6 +84,7 @@ def _parse_album(data: Any) -> Album:
         composer=optional_string(data, "composer"),
         genre=required_string(data, "genre"),
         url=optional_string(data, "url"),
+        file_source=optional_string(data, "file_source"),
     )
 
 
@@ -97,6 +100,7 @@ def _parse_track(data: Mapping[str, Any]) -> AlbumTrack:
         title=required_string(data, "title"),
         artist=optional_string(data, "artist"),
         url=optional_string(data, "url"),
+        file_source=optional_string(data, "file_source"),
         composer=optional_string(data, "composer"),
         genre=optional_string(data, "genre"),
         start_ms=start_ms,
@@ -135,6 +139,7 @@ def _track_data(track: AlbumTrack) -> dict[str, object]:
     for key, value in (
         ("artist", track.artist),
         ("url", track.url),
+        ("file_source", track.file_source),
         ("composer", track.composer),
         ("genre", track.genre),
     ):

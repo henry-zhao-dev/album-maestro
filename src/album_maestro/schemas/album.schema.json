@@ -23,6 +23,11 @@
       "minLength": 1,
       "description": "Reference URL inherited by tracks without one."
     },
+    "file_source": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Local audio path relative to the library, inherited by tracks without one."
+    },
     "tracks": {
       "type": "array",
       "minItems": 1,
@@ -31,10 +36,24 @@
   },
   "allOf": [
     {
-      "if": { "not": { "required": ["url"] } },
+      "if": {
+        "not": {
+          "anyOf": [
+            { "required": ["url"] },
+            { "required": ["file_source"] }
+          ]
+        }
+      },
       "then": {
         "properties": {
-          "tracks": { "items": { "required": ["url"] } }
+          "tracks": {
+            "items": {
+              "anyOf": [
+                { "required": ["url"] },
+                { "required": ["file_source"] }
+              ]
+            }
+          }
         }
       }
     }
@@ -64,7 +83,16 @@
           "minLength": 1,
           "description": "Optional track artist override; inherits the album artist or Various Artists when absent."
         },
-        "url": { "type": "string", "minLength": 1 },
+        "url": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Reference URL for this track."
+        },
+        "file_source": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Local audio path relative to the library."
+        },
         "composer": {
           "type": ["string", "null"],
           "minLength": 1,

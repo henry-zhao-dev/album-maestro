@@ -152,8 +152,9 @@ The album fields are plain text:
 - `file_source` is the default local audio filename stored under `sources/`.
 
 Track-level artist, composer, genre, reference URL, local file source, timestamps, and
-chapters are managed through the database-backed editing workflow. A track’s
-local file source overrides the album-level default when provided.
+chapters are managed through the database-backed editing workflow. JSON uses `url`
+for the reference URL and `file_source` for the local audio path. A track’s local
+file source overrides the album-level default when provided.
 
 List the catalog:
 
