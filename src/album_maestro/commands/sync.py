@@ -5,20 +5,20 @@ import logging
 from pathlib import Path
 
 from album_maestro import specs
-from album_maestro.commands.base import Command
+from album_maestro.commands.base import LibraryCommand
 from album_maestro.library import Library, LibraryError
 from album_maestro.specs import SpecError
 
 logger = logging.getLogger(__name__)
 
 
-class ImportCommand(Command):
+class ImportCommand(LibraryCommand):
     """The ``import`` command."""
 
     name = "import"
     help = "Import an album from JSON"
 
-    def configure(self, parser: argparse.ArgumentParser) -> None:
+    def configure_arguments(self, parser: argparse.ArgumentParser) -> None:
         source = parser.add_mutually_exclusive_group(required=True)
         source.add_argument(
             "--json",
@@ -31,12 +31,6 @@ class ImportCommand(Command):
             type=Path,
             metavar="DIRECTORY",
             help="A directory containing album JSON files",
-        )
-        parser.add_argument(
-            "--library",
-            default=".",
-            metavar="DIRECTORY",
-            help="Library directory (default: current directory)",
         )
         parser.add_argument(
             "--overwrite",
@@ -81,13 +75,13 @@ class ImportCommand(Command):
         return sorted(directory.glob("*.json"))
 
 
-class ExportCommand(Command):
+class ExportCommand(LibraryCommand):
     """Export SQLite album data as JSON specifications."""
 
     name = "export"
     help = "Export albums to JSON specifications."
 
-    def configure(self, parser: argparse.ArgumentParser) -> None:
+    def configure_arguments(self, parser: argparse.ArgumentParser) -> None:
         selection = parser.add_mutually_exclusive_group(required=True)
         selection.add_argument(
             "album_references",
@@ -113,12 +107,6 @@ class ExportCommand(Command):
             type=Path,
             metavar="DIRECTORY",
             help="Directory for one JSON file per album",
-        )
-        parser.add_argument(
-            "--library",
-            default=".",
-            metavar="DIRECTORY",
-            help="Library directory (default: current directory)",
         )
         parser.add_argument(
             "--overwrite",

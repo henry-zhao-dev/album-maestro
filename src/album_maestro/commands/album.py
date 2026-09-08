@@ -4,29 +4,24 @@ import argparse
 import logging
 from collections.abc import Sequence
 
-from album_maestro import pipeline
+from album_maestro import pipeline, specs
 from album_maestro.commands import prompts
-from album_maestro.commands.base import Command
+from album_maestro.commands.base import LibraryCommand
 from album_maestro.library import Library, LibraryError
 from album_maestro.models import Album, AlbumSummary, VARIOUS_ARTISTS
-from album_maestro.specs import parse_timestamp
 
 logger = logging.getLogger(__name__)
 
 
-class CreateCommand(Command):
+class CreateCommand(LibraryCommand):
     """Implement ``album-maestro create``."""
 
     name = "create"
     help = "Create a new album."
 
-    def configure(self, parser: argparse.ArgumentParser) -> None:
-        parser.add_argument(
-            "--library",
-            default=".",
-            metavar="DIRECTORY",
-            help="Library directory (default: current directory)",
-        )
+    def configure_arguments(self, parser: argparse.ArgumentParser) -> None:
+        """Add arguments for creating an album."""
+        pass
 
     def run(self, args: argparse.Namespace) -> int:
         try:
@@ -61,19 +56,14 @@ class CreateCommand(Command):
         return 0
 
 
-class ListCommand(Command):
+class ListCommand(LibraryCommand):
     """Implement ``album-maestro list``."""
 
     name = "list"
     help = "List albums in a music library."
 
-    def configure(self, parser: argparse.ArgumentParser) -> None:
-        parser.add_argument(
-            "--library",
-            default=".",
-            metavar="DIRECTORY",
-            help="Library directory (default: current directory)",
-        )
+    def configure_arguments(self, parser: argparse.ArgumentParser) -> None:
+        """Add arguments for listing albums."""
 
     def run(self, args: argparse.Namespace) -> int:
         try:
@@ -86,23 +76,17 @@ class ListCommand(Command):
         return 0
 
 
-class SearchCommand(Command):
+class SearchCommand(LibraryCommand):
     """Implement ``album-maestro search``."""
 
     name = "search"
     help = "Search album metadata."
 
-    def configure(self, parser: argparse.ArgumentParser) -> None:
+    def configure_arguments(self, parser: argparse.ArgumentParser) -> None:
         parser.add_argument("--title", help="Match album titles")
         parser.add_argument("--artist", help="Match album artists")
         parser.add_argument("--composer", help="Match composers")
         parser.add_argument("--genre", help="Match genres")
-        parser.add_argument(
-            "--library",
-            default=".",
-            metavar="DIRECTORY",
-            help="Library directory (default: current directory)",
-        )
 
     def run(self, args: argparse.Namespace) -> int:
         try:
@@ -120,20 +104,14 @@ class SearchCommand(Command):
         return 0
 
 
-class ShowCommand(Command):
+class ShowCommand(LibraryCommand):
     """Implement ``album-maestro show``."""
 
     name = "show"
     help = "Show an album and its tracks."
 
-    def configure(self, parser: argparse.ArgumentParser) -> None:
+    def configure_arguments(self, parser: argparse.ArgumentParser) -> None:
         parser.add_argument("reference", metavar="ALBUM")
-        parser.add_argument(
-            "--library",
-            default=".",
-            metavar="DIRECTORY",
-            help="Library directory (default: current directory)",
-        )
 
     def run(self, args: argparse.Namespace) -> int:
         try:
@@ -164,20 +142,14 @@ class ShowCommand(Command):
         return 0
 
 
-class EditCommand(Command):
+class EditCommand(LibraryCommand):
     """Implement the interactive ``album-maestro edit`` command."""
 
     name = "edit"
     help = "Edit an album and its tracks."
 
-    def configure(self, parser: argparse.ArgumentParser) -> None:
+    def configure_arguments(self, parser: argparse.ArgumentParser) -> None:
         parser.add_argument("reference", metavar="ALBUM")
-        parser.add_argument(
-            "--library",
-            default=".",
-            metavar="DIRECTORY",
-            help="Library directory (default: current directory)",
-        )
 
     def run(self, args: argparse.Namespace) -> int:
         try:
@@ -214,20 +186,14 @@ class EditCommand(Command):
                 return 1
 
 
-class DeleteCommand(Command):
+class DeleteCommand(LibraryCommand):
     """Implement the ``album-maestro delete`` command."""
 
     name = "delete"
     help = "Delete an album."
 
-    def configure(self, parser: argparse.ArgumentParser) -> None:
+    def configure_arguments(self, parser: argparse.ArgumentParser) -> None:
         parser.add_argument("reference", metavar="ALBUM")
-        parser.add_argument(
-            "--library",
-            default=".",
-            metavar="DIRECTORY",
-            help="Library directory (default: current directory)",
-        )
 
     def run(self, args: argparse.Namespace) -> int:
         try:
@@ -247,13 +213,13 @@ class DeleteCommand(Command):
         return 0
 
 
-class DownloadCommand(Command):
+class DownloadCommand(LibraryCommand):
     """Implement ``album-maestro download``."""
 
     name = "download"
     help = "Download every track in one or more albums."
 
-    def configure(self, parser: argparse.ArgumentParser) -> None:
+    def configure_arguments(self, parser: argparse.ArgumentParser) -> None:
         selection = parser.add_mutually_exclusive_group(required=True)
         selection.add_argument(
             "album_references",
@@ -266,12 +232,6 @@ class DownloadCommand(Command):
             action="store_true",
             dest="all_albums",
             help="Download every album in the library",
-        )
-        parser.add_argument(
-            "--library",
-            default=".",
-            metavar="DIRECTORY",
-            help="Library directory (default: current directory)",
         )
         parser.add_argument(
             "--overwrite",
@@ -451,7 +411,7 @@ def _prompt_timestamp(label: str, default_ms: int | None = None) -> int | None:
         if not value:
             return None
         try:
-            return parse_timestamp(value)
+            return specs.parse_timestamp(value)
         except ValueError:
             print("Please enter a timestamp such as 1:23 or 1:02:03.")
 
