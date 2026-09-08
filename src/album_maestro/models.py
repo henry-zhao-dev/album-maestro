@@ -61,7 +61,9 @@ class AlbumTrack:
     def __post_init__(self) -> None:
         """Normalize track text and validate its time range."""
 
-        object.__setattr__(self, "title", required_text(self.title, "track title"))
+        object.__setattr__(
+            self, "title", required_text(self.title, label="track title")
+        )
         object.__setattr__(self, "artist", optional_text(self.artist))
         object.__setattr__(self, "url", optional_text(self.url))
         object.__setattr__(self, "file_source", optional_text(self.file_source))
@@ -141,10 +143,14 @@ class Album:
     def __post_init__(self) -> None:
         """Normalize text and validate invariants for one album model."""
 
-        object.__setattr__(self, "title", required_text(self.title, "album title"))
+        object.__setattr__(
+            self, "title", required_text(self.title, label="album title")
+        )
         object.__setattr__(self, "artist", optional_text(self.artist))
         object.__setattr__(self, "composer", optional_text(self.composer))
-        object.__setattr__(self, "genre", required_text(self.genre, "album genre"))
+        object.__setattr__(
+            self, "genre", required_text(self.genre, label="album genre")
+        )
         object.__setattr__(self, "url", optional_text(self.url))
         object.__setattr__(self, "file_source", optional_text(self.file_source))
         object.__setattr__(self, "tracks", tuple(self.tracks))

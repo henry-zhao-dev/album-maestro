@@ -25,6 +25,20 @@ class CreateCommand(LibraryCommand):
 
     def run_library(self, library: Library, args: argparse.Namespace) -> int:
         title = prompts.text("Album title")
+
+        try:
+            reference = specs.reference_from_text(title, label="album title")
+            if library.album_exists(reference):
+                logger.error(
+                    "Cannot create album: reference '%s' already exists. "
+                    "Choose a different title or use 'edit' to modify the existing album.",
+                    reference,
+                )
+                return 1
+        except ValueError as error:
+            logger.error("Cannot create album: %s", error)
+            return 1
+
         artist = prompts.text("Album artist (optional)")
         composer = prompts.text("Album composer (optional)")
         genre = prompts.text("Album genre")
@@ -34,7 +48,7 @@ class CreateCommand(LibraryCommand):
         )
 
         try:
-            reference = library.create_album(
+            library.create_album(
                 Album(
                     title=title,
                     artist=artist or None,
@@ -45,7 +59,7 @@ class CreateCommand(LibraryCommand):
                     tracks=(),
                 )
             )
-        except (LibraryError, ValueError) as error:
+        except ValueError as error:
             logger.error("Cannot create album: %s", error)
             return 1
 
@@ -152,9 +166,10 @@ class EditCommand(LibraryCommand):
     def run_library(self, library: Library, args: argparse.Namespace) -> int:
         try:
             album = library.load_album(args.reference)
+            title = prompts.text("Album title", album.title)
             library.update_album(
                 args.reference,
-                title=prompts.text("Album title", album.title),
+                title=title,
                 artist=prompts.text("Album artist (optional)", album.artist),
                 composer=prompts.text("Album composer (optional)", album.composer),
                 genre=prompts.text("Album genre", album.genre),

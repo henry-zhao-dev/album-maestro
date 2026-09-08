@@ -28,17 +28,11 @@ class InitializeLibraryTests(unittest.TestCase):
                 )
                 self.assertIn(
                     "file_source",
-                    {
-                        row[1]
-                        for row in connection.execute("PRAGMA table_info(albums)")
-                    },
+                    {row[1] for row in connection.execute("PRAGMA table_info(albums)")},
                 )
                 self.assertIn(
                     "file_source",
-                    {
-                        row[1]
-                        for row in connection.execute("PRAGMA table_info(tracks)")
-                    },
+                    {row[1] for row in connection.execute("PRAGMA table_info(tracks)")},
                 )
 
     def test_refuses_to_replace_existing_database(self):
@@ -162,9 +156,7 @@ class CatalogMutationTests(unittest.TestCase):
             library.initialize()
             (root / "outside.m4a").write_bytes(b"audio")
 
-            with self.assertRaisesRegex(
-                LibraryError, "inside the sources directory"
-            ):
+            with self.assertRaisesRegex(LibraryError, "inside the sources directory"):
                 library.create_album(
                     Album(
                         title="Album",

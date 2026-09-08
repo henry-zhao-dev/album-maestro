@@ -16,8 +16,8 @@ def optional_text(value: str | None) -> str | None:
 
 def required_text(
     value: str | None,
-    label: str,
     *,
+    label: str,
     error_type: type[ValueError] = ValueError,
 ) -> str:
     """Normalize required text or raise the requested validation error."""

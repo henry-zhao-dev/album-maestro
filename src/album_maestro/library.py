@@ -44,6 +44,11 @@ class Library:
 
         return [album.reference for album in self.list_albums()]
 
+    def album_exists(self, reference: str) -> bool:
+        """Check if an album exists in database."""
+
+        return reference in self.album_references()
+
     def list_albums(self) -> list[AlbumSummary]:
         """Return album summaries stored in SQLite."""
 
@@ -104,7 +109,7 @@ class Library:
 
         normalized = {
             key: (
-                required_text(value, f"album {key}", error_type=LibraryError)
+                required_text(value, label=f"album {key}", error_type=LibraryError)
                 if key in {"title", "genre"}
                 else optional_text(value)
             )
@@ -181,9 +186,7 @@ class Library:
             file_source = normalized["file_source"]
             if file_source is not None and not isinstance(file_source, str):
                 raise LibraryError("file source must be text")
-            normalized["file_source"] = self._normalize_file_source(
-                file_source
-            )
+            normalized["file_source"] = self._normalize_file_source(file_source)
 
         try:
             database.update_track(self.database_path, reference, position, **normalized)
@@ -251,12 +254,16 @@ class Library:
         try:
             candidate.relative_to(sources_root)
         except ValueError as error:
-            raise LibraryError("file source must be inside the sources directory") from error
+            raise LibraryError(
+                "file source must be inside the sources directory"
+            ) from error
 
         if not candidate.is_file():
             raise LibraryError(f"file source does not exist: {normalized}")
 
-        return PurePosixPath(*candidate.relative_to(self.root.resolve()).parts).as_posix()
+        return PurePosixPath(
+            *candidate.relative_to(self.root.resolve()).parts
+        ).as_posix()
 
     @classmethod
     def load(cls, root: str | Path = ".") -> "Library":

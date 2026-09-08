@@ -424,15 +424,9 @@ def _migrate_schema(connection: sqlite3.Connection) -> None:
         version = _INITIAL_SCHEMA_VERSION
 
     if version < _CURRENT_SCHEMA_VERSION:
-        connection.execute(
-            "ALTER TABLE albums ADD COLUMN file_source TEXT"
-        )
-        connection.execute(
-            "ALTER TABLE tracks ADD COLUMN file_source TEXT"
-        )
-        connection.execute(
-            f"PRAGMA user_version = {_CURRENT_SCHEMA_VERSION}"
-        )
+        connection.execute("ALTER TABLE albums ADD COLUMN file_source TEXT")
+        connection.execute("ALTER TABLE tracks ADD COLUMN file_source TEXT")
+        connection.execute(f"PRAGMA user_version = {_CURRENT_SCHEMA_VERSION}")
 
 
 def _album_summary_rows(

@@ -232,7 +232,14 @@ class AlbumCommandTests(unittest.TestCase):
 
     @patch(
         "builtins.input",
-        side_effect=("Bach Album", "Bach", "Johann Sebastian Bach", "Classical", "", ""),
+        side_effect=(
+            "Bach Album",
+            "Bach",
+            "Johann Sebastian Bach",
+            "Classical",
+            "",
+            "",
+        ),
     )
     def test_list_prints_albums_from_sqlite(self, _input):
         with tempfile.TemporaryDirectory() as temporary_dir:
