@@ -86,6 +86,78 @@ class AlbumTests(unittest.TestCase):
         self.assertEqual(tracks[1].genre, "Romantic")
         self.assertEqual(tracks[1].start_ms, 510_000)
 
+    def test_round_trips_reference_urls_and_file_sources(self):
+        album = _parse_album(
+            {
+                "title": "Album",
+                "genre": "Classical",
+                "url": "https://example.com/album",
+                "file_source": "sources/album.m4a",
+                "tracks": [
+                    {
+                        "title": "Opening",
+                        "url": "https://example.com/opening",
+                        "file_source": "sources/opening.m4a",
+                    }
+                ],
+            }
+        )
+
+        self.assertEqual(album.url, "https://example.com/album")
+        self.assertEqual(album.file_source, "sources/album.m4a")
+        self.assertEqual(album.tracks[0].url, "https://example.com/opening")
+        self.assertEqual(album.tracks[0].file_source, "sources/opening.m4a")
+        self.assertEqual(
+            dump_album(album),
+            {
+                "title": "Album",
+                "genre": "Classical",
+                "url": "https://example.com/album",
+                "file_source": "sources/album.m4a",
+                "tracks": [
+                    {
+                        "title": "Opening",
+                        "url": "https://example.com/opening",
+                        "file_source": "sources/opening.m4a",
+                    }
+                ],
+            },
+        )
+
+    def test_resolves_local_sources_without_reference_urls(self):
+        album = _parse_album(
+            {
+                "title": "Local Album",
+                "genre": "Classical",
+                "file_source": "sources/album.m4a",
+                "tracks": [
+                    {"title": "Opening"},
+                    {"title": "Second", "file_source": "sources/second.m4a"},
+                ],
+            }
+        )
+
+        tracks = album.requests()
+
+        self.assertIsNone(tracks[0].url)
+        self.assertEqual(tracks[0].file_source, "sources/album.m4a")
+        self.assertIsNone(tracks[1].url)
+        self.assertEqual(tracks[1].file_source, "sources/second.m4a")
+
+    def test_accepts_local_source_without_reference_url(self):
+        album = _parse_album(
+            {
+                "title": "Local Album",
+                "genre": "Classical",
+                "file_source": "sources/album.m4a",
+                "tracks": [{"title": "Opening"}],
+            }
+        )
+
+        self.assertEqual(album.file_source, "sources/album.m4a")
+        self.assertIsNone(album.url)
+        self.assertIsNone(album.tracks[0].url)
+
     def test_defaults_compilation_to_various_artists(self):
         album = _parse_album(
             {
@@ -125,10 +197,8 @@ class AlbumTests(unittest.TestCase):
         self.assertEqual(track.composer, "Johann Sebastian Bach")
         self.assertEqual(track.genre, "Baroque")
 
-    def test_rejects_track_without_any_url(self):
-        with self.assertRaisesRegex(
-            SpecError, r"album\.tracks\[0\]: 'url' is a required property"
-        ):
+    def test_rejects_track_without_url_or_source(self):
+        with self.assertRaises(SpecError):
             _parse_album(
                 {
                     "title": "Album",

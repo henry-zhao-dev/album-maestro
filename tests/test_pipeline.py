@@ -6,7 +6,7 @@ from unittest.mock import patch
 from album_maestro.models import Chapter, TrackRequest
 from album_maestro.pipeline import (
     PipelineError,
-    _create_track,
+    create_track,
     _resolve_chapters,
     _resolve_time_range,
     _track_output_path,
@@ -87,7 +87,7 @@ class PipelineTests(unittest.TestCase):
                 chapters=(Chapter(1_000, "Opening"),),
             )
 
-            result = _create_track(track, source, destination, work_dir)
+            result = create_track(track, source, destination, work_dir)
 
         expected = destination.resolve() / "Various Artists" / "Album" / "Track.m4a"
         self.assertEqual(result, expected)

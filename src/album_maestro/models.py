@@ -43,12 +43,15 @@ class AlbumTrack:
     """One output audio file declared inside an album.
 
     Metadata values override the corresponding album-level defaults when
-    present. Start and end timestamps refer to the selected source recording.
+    present. The file source follows the same album-default and track-override
+    pattern as the URL. Start and end timestamps refer to the selected source
+    recording.
     """
 
     title: str
     artist: str | None = None
     url: str | None = None
+    file_source: str | None = None
     composer: str | None = None
     genre: str | None = None
     start_ms: int | None = None
@@ -58,9 +61,12 @@ class AlbumTrack:
     def __post_init__(self) -> None:
         """Normalize track text and validate its time range."""
 
-        object.__setattr__(self, "title", required_text(self.title, "track title"))
+        object.__setattr__(
+            self, "title", required_text(self.title, label="track title")
+        )
         object.__setattr__(self, "artist", optional_text(self.artist))
         object.__setattr__(self, "url", optional_text(self.url))
+        object.__setattr__(self, "file_source", optional_text(self.file_source))
         object.__setattr__(self, "composer", optional_text(self.composer))
         object.__setattr__(self, "genre", optional_text(self.genre))
         if (
@@ -76,11 +82,12 @@ class AlbumTrack:
 class TrackRequest:
     """A fully resolved track request for source audio processing."""
 
-    url: str
+    url: str | None
     title: str
     artist: str
     album_artist: str
     album: str
+    file_source: str | None = None
     composer: str | None = None
     genre: str | None = None
     track_number: int | None = None
@@ -132,15 +139,21 @@ class Album:
     genre: str
     composer: str | None = None
     url: str | None = None
+    file_source: str | None = None
 
     def __post_init__(self) -> None:
         """Normalize text and validate invariants for one album model."""
 
-        object.__setattr__(self, "title", required_text(self.title, "album title"))
+        object.__setattr__(
+            self, "title", required_text(self.title, label="album title")
+        )
         object.__setattr__(self, "artist", optional_text(self.artist))
         object.__setattr__(self, "composer", optional_text(self.composer))
-        object.__setattr__(self, "genre", required_text(self.genre, "album genre"))
+        object.__setattr__(
+            self, "genre", required_text(self.genre, label="album genre")
+        )
         object.__setattr__(self, "url", optional_text(self.url))
+        object.__setattr__(self, "file_source", optional_text(self.file_source))
         object.__setattr__(self, "tracks", tuple(self.tracks))
 
     def resolved_album_artist(self) -> str:
@@ -156,8 +169,6 @@ class Album:
         requests: list[TrackRequest] = []
         for index, track in enumerate(self.tracks, start=1):
             url = track.url or self.url
-            if url is None:
-                raise ValueError(f"track {index} has no source URL")
             requests.append(
                 TrackRequest(
                     url=url,
@@ -165,6 +176,7 @@ class Album:
                     artist=track.artist or album_artist,
                     album_artist=album_artist,
                     album=self.title,
+                    file_source=track.file_source or self.file_source,
                     composer=track.composer or self.composer,
                     genre=track.genre or self.genre,
                     track_number=index,

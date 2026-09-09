@@ -25,6 +25,7 @@ class HelpTests(unittest.TestCase):
         for arguments, usage, detail in (
             (["init", "-h"], "usage: album-maestro init", "--name"),
             (["create", "-h"], "usage: album-maestro create", "--library"),
+            (["process", "-h"], "usage: album-maestro process", "--output"),
         ):
             with self.subTest(command=arguments[0]):
                 output = StringIO()
@@ -69,6 +70,28 @@ class ImportCommandTests(unittest.TestCase):
         self.assertEqual(album.tracks[0].start_ms, 1_000)
         self.assertEqual(album.tracks[0].end_ms, 5_000)
 
+    def test_imports_album_and_track_sources_into_sqlite(self):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir) / "library"
+            library = Library(root=root, name="Music")
+            library.initialize()
+            (library.sources_path / "album.m4a").write_bytes(b"album audio")
+            (library.sources_path / "opening.m4a").write_bytes(b"track audio")
+            source = Path(temporary_dir) / "album.json"
+            source.write_text(
+                '{"title":"Imported Album","genre":"Classical",'
+                '"file_source":"album.m4a","tracks":[{"title":"Opening",'
+                '"file_source":"opening.m4a"}]}',
+                encoding="utf-8",
+            )
+
+            result = main(["import", "--json", str(source), "--library", str(root)])
+            album = Library.load(root).load_album("imported-album")
+
+        self.assertEqual(result, 0)
+        self.assertEqual(album.file_source, "sources/album.m4a")
+        self.assertEqual(album.tracks[0].file_source, "sources/opening.m4a")
+
     def test_import_directory_overwrites_existing_album(self):
         with tempfile.TemporaryDirectory() as temporary_dir:
             root = Path(temporary_dir) / "library"
@@ -102,6 +125,65 @@ class ImportCommandTests(unittest.TestCase):
         self.assertEqual(result, 0)
         self.assertEqual(album.artist, "New Artist")
         self.assertEqual([track.title for track in album.tracks], ["Fresh Track"])
+
+
+class ProcessCommandTests(unittest.TestCase):
+    @patch("album_maestro.commands.process.pipeline.create_track")
+    def test_process_uses_local_source_without_downloading(self, create_track):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir) / "library"
+            library = Library(root=root, name="Music")
+            library.initialize()
+            source = library.sources_path / "recording.m4a"
+            source.write_bytes(b"audio")
+            library.create_album(
+                Album(
+                    title="Album",
+                    artist="Artist",
+                    genre="Classical",
+                    file_source="recording.m4a",
+                    tracks=(AlbumTrack(title="Opening"),),
+                )
+            )
+            output = root / "tracks"
+            create_track.return_value = output / "Artist" / "Album" / "Opening.m4a"
+
+            result = main(["process", "album", "--library", str(root)])
+
+        self.assertEqual(result, 0)
+        create_track.assert_called_once()
+        request, resolved_source, destination, work_dir = create_track.call_args.args
+        self.assertIsNone(request.url)
+        self.assertEqual(request.file_source, "sources/recording.m4a")
+        self.assertEqual(resolved_source, source.resolve())
+        self.assertEqual(destination, output.resolve())
+        self.assertFalse(work_dir.exists())
+
+    @patch("album_maestro.commands.process.pipeline.create_track")
+    def test_process_continues_after_one_track_fails(self, create_track):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir) / "library"
+            library = Library(root=root, name="Music")
+            library.initialize()
+            (library.sources_path / "recording.m4a").write_bytes(b"audio")
+            library.create_album(
+                Album(
+                    title="Album",
+                    artist="Artist",
+                    genre="Classical",
+                    file_source="recording.m4a",
+                    tracks=(
+                        AlbumTrack(title="Opening"),
+                        AlbumTrack(title="Second"),
+                    ),
+                )
+            )
+            create_track.side_effect = [RuntimeError("broken source"), Path("done")]
+
+            result = main(["process", "album", "--library", str(root)])
+
+        self.assertEqual(result, 1)
+        self.assertEqual(create_track.call_count, 2)
 
 
 class ExportCommandTests(unittest.TestCase):
@@ -138,6 +220,49 @@ class ExportCommandTests(unittest.TestCase):
         self.assertEqual(exported["tracks"][0]["start"], "0:01")
         self.assertEqual(exported["tracks"][0]["end"], "0:05")
 
+    def test_exports_album_and_track_sources(self):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir) / "library"
+            library = Library(root=root, name="Music")
+            library.initialize()
+            (library.sources_path / "album.m4a").write_bytes(b"album audio")
+            (library.sources_path / "opening.m4a").write_bytes(b"track audio")
+            library.create_album(
+                Album(
+                    title="Album",
+                    artist=None,
+                    genre="Classical",
+                    url="https://example.com/album",
+                    file_source="album.m4a",
+                    tracks=(
+                        AlbumTrack(
+                            title="Opening",
+                            url="https://example.com/opening",
+                            file_source="opening.m4a",
+                        ),
+                    ),
+                )
+            )
+            output = Path(temporary_dir) / "album.json"
+
+            result = main(
+                [
+                    "export",
+                    "album",
+                    "--json",
+                    str(output),
+                    "--library",
+                    str(root),
+                ]
+            )
+            exported = json.loads(output.read_text(encoding="utf-8"))
+
+        self.assertEqual(result, 0)
+        self.assertEqual(exported["url"], "https://example.com/album")
+        self.assertEqual(exported["file_source"], "sources/album.m4a")
+        self.assertEqual(exported["tracks"][0]["url"], "https://example.com/opening")
+        self.assertEqual(exported["tracks"][0]["file_source"], "sources/opening.m4a")
+
     def test_exports_all_albums_to_a_directory(self):
         with tempfile.TemporaryDirectory() as temporary_dir:
             root = Path(temporary_dir) / "library"
@@ -167,7 +292,8 @@ class ExportCommandTests(unittest.TestCase):
 
 class AlbumCommandTests(unittest.TestCase):
     @patch(
-        "builtins.input", side_effect=("Best of Romantic Era", "", "", "Classical", "")
+        "builtins.input",
+        side_effect=("Best of Romantic Era", "", "", "Classical", "", ""),
     )
     def test_create_supports_compilation_without_album_artist(self, _input):
         with tempfile.TemporaryDirectory() as temporary_dir:
@@ -192,6 +318,7 @@ class AlbumCommandTests(unittest.TestCase):
             "Johann Sebastian Bach",
             "Baroque",
             "https://example.com/recording",
+            "",
         ),
     )
     def test_create_writes_literal_metadata(self, input_mock):
@@ -213,7 +340,8 @@ class AlbumCommandTests(unittest.TestCase):
                 call("Album artist (optional): "),
                 call("Album composer (optional): "),
                 call("Album genre: "),
-                call("Album shared URL (optional): "),
+                call("Album reference URL (optional): "),
+                call("Album file source (filename under sources/, optional): "),
             ],
         )
         self.assertEqual(
@@ -229,7 +357,14 @@ class AlbumCommandTests(unittest.TestCase):
 
     @patch(
         "builtins.input",
-        side_effect=("Bach Album", "Bach", "Johann Sebastian Bach", "Classical", ""),
+        side_effect=(
+            "Bach Album",
+            "Bach",
+            "Johann Sebastian Bach",
+            "Classical",
+            "",
+            "",
+        ),
     )
     def test_list_prints_albums_from_sqlite(self, _input):
         with tempfile.TemporaryDirectory() as temporary_dir:
@@ -282,8 +417,8 @@ class AlbumCommandTests(unittest.TestCase):
                 result = main(["show", "symphony", "--library", str(root)])
 
         self.assertEqual(result, 0)
-        self.assertIn("Title:        Symphony", output.getvalue())
-        self.assertIn("Artist:       Ludwig van Beethoven", output.getvalue())
+        self.assertIn("Title:          Symphony", output.getvalue())
+        self.assertIn("Artist:         Ludwig van Beethoven", output.getvalue())
         self.assertIn("First", output.getvalue())
         self.assertIn("Second", output.getvalue())
 
@@ -323,8 +458,10 @@ class AlbumCommandTests(unittest.TestCase):
             "",
             "",
             "",
+            "",
             "a",
             "Third",
+            "",
             "",
             "",
             "",
@@ -351,13 +488,17 @@ class AlbumCommandTests(unittest.TestCase):
         self.assertIsNone(album.tracks[-1].composer)
         self.assertIsNone(album.tracks[-1].genre)
         self.assertIsNone(album.tracks[-1].url)
+        self.assertIsNone(album.tracks[-1].file_source)
         resolved_track = album.requests()[-1]
         self.assertEqual(resolved_track.artist, "Ludwig van Beethoven")
         self.assertEqual(resolved_track.composer, "Ludwig van Beethoven")
         self.assertEqual(resolved_track.genre, "Classical")
         self.assertEqual(resolved_track.url, "https://example.com/full")
 
-    @patch("builtins.input", side_effect=("No Genre Album", "Artist", "", "", ""))
+    @patch(
+        "builtins.input",
+        side_effect=("No Genre Album", "Artist", "", "", "", ""),
+    )
     def test_create_rejects_missing_genre(self, _input):
         with tempfile.TemporaryDirectory() as temporary_dir:
             root = Path(temporary_dir) / "library"

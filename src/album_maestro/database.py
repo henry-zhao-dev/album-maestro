@@ -64,6 +64,9 @@ CREATE INDEX IF NOT EXISTS albums_composer_idx ON albums (composer);
 CREATE INDEX IF NOT EXISTS albums_genre_idx ON albums (genre);
 """
 
+_INITIAL_SCHEMA_VERSION = 1
+_CURRENT_SCHEMA_VERSION = 2
+
 
 def initialize(path: str | Path, name: str) -> Path:
     """Create and initialize a new Album Maestro database."""
@@ -75,7 +78,7 @@ def initialize(path: str | Path, name: str) -> Path:
     try:
         with sqlite3.connect(database_path) as connection:
             _configure(connection)
-            connection.executescript(SCHEMA)
+            _ensure_schema(connection)
             connection.execute("INSERT INTO library (id, name) VALUES (1, ?)", (name,))
     except (OSError, sqlite3.Error) as error:
         raise DatabaseError(str(error)) from error
@@ -120,8 +123,10 @@ def create_album(
 
             cursor = connection.execute(
                 """
-                INSERT INTO albums (reference, title, artist, composer, genre, url)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO albums (
+                    reference, title, artist, composer, genre, url, file_source
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     reference,
@@ -130,6 +135,7 @@ def create_album(
                     album.composer,
                     album.genre,
                     album.url,
+                    album.file_source,
                 ),
             )
             album_id = cursor.lastrowid
@@ -141,9 +147,9 @@ def create_album(
                     """
                     INSERT INTO tracks (
                         album_id, position, title, artist, composer, genre, url,
-                        start_ms, end_ms
+                        file_source, start_ms, end_ms
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         album_id,
@@ -153,6 +159,7 @@ def create_album(
                         track.composer,
                         track.genre,
                         track.url,
+                        track.file_source,
                         track.start_ms,
                         track.end_ms,
                     ),
@@ -210,7 +217,7 @@ def get_album(path: str | Path, reference: str) -> Album:
             _configure(connection)
             album_row = connection.execute(
                 """
-                SELECT id, title, artist, composer, genre, url
+                SELECT id, title, artist, composer, genre, url, file_source
                 FROM albums
                 WHERE reference = ?
                 """,
@@ -221,7 +228,8 @@ def get_album(path: str | Path, reference: str) -> Album:
 
             track_rows = connection.execute(
                 """
-                SELECT id, title, artist, composer, genre, url, start_ms, end_ms
+                SELECT id, title, artist, composer, genre, url, file_source,
+                       start_ms, end_ms
                 FROM tracks
                 WHERE album_id = ?
                 ORDER BY position
@@ -242,6 +250,7 @@ def get_album(path: str | Path, reference: str) -> Album:
         composer=album_row[3],
         genre=album_row[4],
         url=album_row[5],
+        file_source=album_row[6],
         tracks=tuple(tracks),
     )
 
@@ -255,7 +264,7 @@ def update_album(path: str | Path, reference: str, **fields: Any) -> None:
         "reference",
         reference,
         fields,
-        {"title", "artist", "composer", "genre", "url"},
+        {"title", "artist", "composer", "genre", "url", "file_source"},
     )
 
 
@@ -282,6 +291,7 @@ def create_track(
     composer: str | None,
     genre: str | None,
     url: str | None,
+    file_source: str | None,
     start_ms: int | None,
     end_ms: int | None,
     chapters: tuple[Chapter, ...] = (),
@@ -300,9 +310,9 @@ def create_track(
                 """
                 INSERT INTO tracks (
                     album_id, position, title, artist, composer, genre, url,
-                    start_ms, end_ms
+                    file_source, start_ms, end_ms
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     album_id,
@@ -312,6 +322,7 @@ def create_track(
                     composer,
                     genre,
                     url,
+                    file_source,
                     start_ms,
                     end_ms,
                 ),
@@ -340,7 +351,16 @@ def update_track(
                 "tracks",
                 track_id,
                 fields,
-                {"title", "artist", "composer", "genre", "url", "start_ms", "end_ms"},
+                {
+                    "title",
+                    "artist",
+                    "composer",
+                    "genre",
+                    "url",
+                    "file_source",
+                    "start_ms",
+                    "end_ms",
+                },
             )
     except DatabaseError:
         raise
@@ -389,9 +409,24 @@ def _configure(connection: sqlite3.Connection) -> None:
 
 
 def _ensure_schema(connection: sqlite3.Connection) -> None:
-    """Apply additive schema changes to an existing database."""
+    """Create the base schema and apply incremental migrations."""
 
     connection.executescript(SCHEMA)
+    _migrate_schema(connection)
+
+
+def _migrate_schema(connection: sqlite3.Connection) -> None:
+    """Apply incremental schema migrations."""
+    version = connection.execute("PRAGMA user_version").fetchone()[0]
+
+    if version < _INITIAL_SCHEMA_VERSION:
+        # Existing databases predate explicit versioning.
+        version = _INITIAL_SCHEMA_VERSION
+
+    if version < _CURRENT_SCHEMA_VERSION:
+        connection.execute("ALTER TABLE albums ADD COLUMN file_source TEXT")
+        connection.execute("ALTER TABLE tracks ADD COLUMN file_source TEXT")
+        connection.execute(f"PRAGMA user_version = {_CURRENT_SCHEMA_VERSION}")
 
 
 def _album_summary_rows(
@@ -473,8 +508,9 @@ def _track_from_row(connection: sqlite3.Connection, row: tuple[Any, ...]) -> Alb
         composer=row[3],
         genre=row[4],
         url=row[5],
-        start_ms=row[6],
-        end_ms=row[7],
+        file_source=row[6],
+        start_ms=row[7],
+        end_ms=row[8],
         chapters=tuple(
             Chapter(start_ms=chapter[1], title=chapter[0], end_ms=chapter[2])
             for chapter in chapter_rows

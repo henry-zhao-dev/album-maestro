@@ -25,23 +25,41 @@ class CreateCommand(LibraryCommand):
 
     def run_library(self, library: Library, args: argparse.Namespace) -> int:
         title = prompts.text("Album title")
+
+        try:
+            reference = specs.reference_from_text(title, label="album title")
+            if library.album_exists(reference):
+                logger.error(
+                    "Cannot create album: reference '%s' already exists. "
+                    "Choose a different title or use 'edit' to modify the existing album.",
+                    reference,
+                )
+                return 1
+        except ValueError as error:
+            logger.error("Cannot create album: %s", error)
+            return 1
+
         artist = prompts.text("Album artist (optional)")
         composer = prompts.text("Album composer (optional)")
         genre = prompts.text("Album genre")
-        shared_url = prompts.text("Album shared URL (optional)")
+        reference_url = prompts.text("Album reference URL (optional)")
+        file_source = prompts.text(
+            "Album file source (filename under sources/, optional)"
+        )
 
         try:
-            reference = library.create_album(
+            library.create_album(
                 Album(
                     title=title,
                     artist=artist or None,
                     composer=composer or None,
                     genre=genre,
-                    url=shared_url or None,
+                    url=reference_url or None,
+                    file_source=file_source or None,
                     tracks=(),
                 )
             )
-        except (LibraryError, ValueError) as error:
+        except ValueError as error:
             logger.error("Cannot create album: %s", error)
             return 1
 
@@ -112,12 +130,14 @@ class ShowCommand(LibraryCommand):
             logger.error("Cannot show album: %s", error)
             return 1
 
-        print(f"Title:        {album.title}")
-        print(f"Artist:       {album.artist or VARIOUS_ARTISTS}")
-        print(f"Album artist: {album.resolved_album_artist()}")
-        print(f"Composer:     {album.composer or '—'}")
-        print(f"Genre:        {album.genre}")
-        print(f"Source:       {album.url or '—'}")
+        print(f"Title:          {album.title}")
+        print(f"Artist:         {album.artist or VARIOUS_ARTISTS}")
+        print(f"Album artist:   {album.resolved_album_artist()}")
+        print(f"Composer:       {album.composer or '—'}")
+        print(f"Genre:          {album.genre}")
+        print()
+        print(f"Reference URL:  {album.url or '—'}")
+        print(f"File source:    {album.file_source or '—'}")
         print()
         print("TRACKS")
         if not album.tracks:
@@ -146,13 +166,18 @@ class EditCommand(LibraryCommand):
     def run_library(self, library: Library, args: argparse.Namespace) -> int:
         try:
             album = library.load_album(args.reference)
+            title = prompts.text("Album title", album.title)
             library.update_album(
                 args.reference,
-                title=prompts.text("Album title", album.title),
+                title=title,
                 artist=prompts.text("Album artist (optional)", album.artist),
                 composer=prompts.text("Album composer (optional)", album.composer),
                 genre=prompts.text("Album genre", album.genre),
-                url=prompts.text("Album shared URL (optional)", album.url),
+                url=prompts.text("Album reference URL (optional)", album.url),
+                file_source=prompts.text(
+                    "Album file source (filename under sources/, optional)",
+                    album.file_source,
+                ),
             )
         except (LibraryError, ValueError) as error:
             logger.error("Cannot edit album: %s", error)
@@ -184,7 +209,11 @@ class EditCommand(LibraryCommand):
         artist = prompts.override_text("Track artist (optional)", album.artist)
         composer = prompts.override_text("Track composer (optional)", album.composer)
         genre = prompts.override_text("Track genre (optional)", album.genre)
-        url = prompts.override_text("Track URL (optional)", album.url)
+        url = prompts.override_text("Track reference URL (optional)", album.url)
+        file_source = prompts.override_text(
+            "Track file source (filename under sources/, optional)",
+            album.file_source,
+        )
         start_ms = self._prompt_timestamp("Track start (optional)")
         end_ms = self._prompt_timestamp("Track end (optional)")
         position = library.create_track(
@@ -194,6 +223,7 @@ class EditCommand(LibraryCommand):
             composer=composer,
             genre=genre,
             url=url,
+            file_source=file_source,
             start_ms=start_ms,
             end_ms=end_ms,
         )
@@ -221,7 +251,13 @@ class EditCommand(LibraryCommand):
             genre=prompts.override_text(
                 "Track genre (optional)", track.genre or album.genre
             ),
-            url=prompts.override_text("Track URL (optional)", track.url or album.url),
+            url=prompts.override_text(
+                "Track reference URL (optional)", track.url or album.url
+            ),
+            file_source=prompts.override_text(
+                "Track file source (filename under sources/, optional)",
+                track.file_source or album.file_source,
+            ),
             start_ms=self._prompt_timestamp("Track start (optional)", track.start_ms),
             end_ms=self._prompt_timestamp("Track end (optional)", track.end_ms),
         )
