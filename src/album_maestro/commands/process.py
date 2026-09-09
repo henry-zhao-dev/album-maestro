@@ -16,7 +16,7 @@ class ProcessCommand(LibraryCommand):
     """Implement ``album-maestro process``."""
 
     name = "process"
-    help = "Process local source audio into tracks."
+    help = "Create tagged track files from local source audio."
 
     def configure_arguments(self, parser: argparse.ArgumentParser) -> None:
         selection = parser.add_mutually_exclusive_group(required=True)

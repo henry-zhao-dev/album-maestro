@@ -48,10 +48,10 @@ def trim_audio(
     """Copy the selected time range into a new audio file."""
 
     input_path, output_path = str(input_path), str(output_path)
-    if start_ms < 0 or end_ms <= start_ms:
-        raise ValueError(
-            "start_ms must be non-negative and end_ms must be greater than start_ms"
-        )
+    if start_ms < 0:
+        raise ValueError("start_ms must be non-negative")
+    if end_ms <= start_ms:
+        raise ValueError("end_ms must be greater than start_ms")
 
     command = _ffmpeg_command([input_path])
     command.extend(

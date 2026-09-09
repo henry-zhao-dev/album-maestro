@@ -9,6 +9,7 @@ from album_maestro.commands import prompts
 from album_maestro.commands.base import LibraryCommand
 from album_maestro.library import Library, LibraryError
 from album_maestro.models import Album, AlbumSummary, VARIOUS_ARTISTS
+from album_maestro.text import required_text
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +18,7 @@ class CreateCommand(LibraryCommand):
     """Implement ``album-maestro create``."""
 
     name = "create"
-    help = "Create a new album."
+    help = "Create an album interactively."
 
     def configure_arguments(self, parser: argparse.ArgumentParser) -> None:
         """Add arguments for creating an album."""
@@ -41,7 +42,16 @@ class CreateCommand(LibraryCommand):
 
         artist = prompts.text("Album artist (optional)")
         composer = prompts.text("Album composer (optional)")
-        genre = prompts.text("Album genre")
+        while True:
+            try:
+                genre = required_text(
+                    prompts.text("Album genre"),
+                    label="album genre",
+                )
+            except ValueError:
+                print("Album genre must be provided.")
+            else:
+                break
         reference_url = prompts.text("Album reference URL (optional)")
         file_source = prompts.text(
             "Album file source (filename under sources/, optional)"
@@ -72,7 +82,7 @@ class ListCommand(LibraryCommand):
     """Implement ``album-maestro list``."""
 
     name = "list"
-    help = "List albums in a music library."
+    help = "List albums in the library."
 
     def configure_arguments(self, parser: argparse.ArgumentParser) -> None:
         """Add arguments for listing albums."""
@@ -91,7 +101,7 @@ class SearchCommand(LibraryCommand):
     """Implement ``album-maestro search``."""
 
     name = "search"
-    help = "Search album metadata."
+    help = "Find albums by title, artist, composer, or genre."
 
     def configure_arguments(self, parser: argparse.ArgumentParser) -> None:
         parser.add_argument("--title", help="Match album titles")
@@ -118,7 +128,7 @@ class ShowCommand(LibraryCommand):
     """Implement ``album-maestro show``."""
 
     name = "show"
-    help = "Show an album and its tracks."
+    help = "Show album details and tracks."
 
     def configure_arguments(self, parser: argparse.ArgumentParser) -> None:
         parser.add_argument("reference", metavar="ALBUM")
@@ -147,7 +157,7 @@ class ShowCommand(LibraryCommand):
         print("  #  TITLE                                      START    END")
         for position, track in enumerate(album.tracks, start=1):
             print(
-                f"{position:>3}  {track.title:<42} "
+                f"{position:>3}  {track.title[:42]:<42} "
                 f"{specs.format_timestamp(track.start_ms):<8} "
                 f"{specs.format_timestamp(track.end_ms)}"
             )
@@ -158,7 +168,7 @@ class EditCommand(LibraryCommand):
     """Implement the interactive ``album-maestro edit`` command."""
 
     name = "edit"
-    help = "Edit an album and its tracks."
+    help = "Edit album details and tracks interactively."
 
     def configure_arguments(self, parser: argparse.ArgumentParser) -> None:
         parser.add_argument("reference", metavar="ALBUM")
@@ -295,7 +305,7 @@ class DeleteCommand(LibraryCommand):
     """Implement the ``album-maestro delete`` command."""
 
     name = "delete"
-    help = "Delete an album."
+    help = "Remove an album from the library."
 
     def configure_arguments(self, parser: argparse.ArgumentParser) -> None:
         parser.add_argument("reference", metavar="ALBUM")
