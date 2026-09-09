@@ -24,6 +24,18 @@ class CommandFailureTests(unittest.TestCase):
         with self.assertRaisesRegex(audio.AudioError, "ffmpeg failed"):
             audio.add_metadata("input.m4a", "output.m4a", {"artist": "Bach"})
 
+    @patch("album_maestro.audio.subprocess.check_output", return_value="")
+    def test_metadata_maps_audio_and_optional_artwork(self, check_output):
+        audio.add_metadata("input.m4a", "output.m4a", {"artist": "Bach"})
+
+        command = check_output.call_args.args[0]
+        map_values = [
+            command[index + 1]
+            for index, value in enumerate(command[:-1])
+            if value == "-map"
+        ]
+        self.assertEqual(map_values, ["0:a:0", "0:v:0?"])
+
 
 class TrimTests(unittest.TestCase):
     @patch("album_maestro.audio.subprocess.check_output", return_value="")
@@ -34,6 +46,12 @@ class TrimTests(unittest.TestCase):
         command = check_output.call_args.args[0]
         self.assertEqual(command[command.index("-ss") + 1], "5.000")
         self.assertEqual(command[command.index("-t") + 1], "15.000")
+        map_values = [
+            command[index + 1]
+            for index, value in enumerate(command[:-1])
+            if value == "-map"
+        ]
+        self.assertEqual(map_values, ["0:a:0", "0:v:0?"])
 
 
 class MetadataEscapingTests(unittest.TestCase):

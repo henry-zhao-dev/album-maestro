@@ -60,10 +60,9 @@ def trim_audio(
             _milliseconds_to_seconds(start_ms),
             "-t",
             _milliseconds_to_seconds(end_ms - start_ms),
-            "-map",
-            "0",
         ]
     )
+    _map_source_streams(command)
     if not re_encode:
         command.extend(["-c", "copy"])
     command.append(output_path)
@@ -85,7 +84,8 @@ def add_metadata(
     command = _ffmpeg_command([input_path])
     for key, value in metadata.items():
         command.extend(["-metadata", f"{key}={value}"])
-    command.extend(["-map", "0", "-c", "copy", output_path])
+    _map_source_streams(command)
+    command.extend(["-c", "copy", output_path])
     _run_command(command)
     return output_path
 
@@ -114,10 +114,9 @@ def add_chapters(
         # Preserve tags from the audio input while taking chapters from the
         # generated ffmetadata input.
         command = _ffmpeg_command([input_path, metadata_path])
+        _map_source_streams(command)
         command.extend(
             [
-                "-map",
-                "0",
                 "-map_metadata",
                 "0",
                 "-map_chapters",
@@ -143,6 +142,12 @@ def _ffmpeg_command(input_paths: Sequence[str | Path]) -> list[str]:
     for path in input_paths:
         command.extend(["-i", str(path)])
     return command
+
+
+def _map_source_streams(command: list[str]) -> None:
+    """Map audio and optional artwork while excluding data/text streams."""
+
+    command.extend(["-map", "0:a:0", "-map", "0:v:0?"])
 
 
 def _run_command(command: Sequence[str]) -> str:
