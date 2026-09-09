@@ -157,7 +157,7 @@ class ShowCommand(LibraryCommand):
         print("  #  TITLE                                      START    END")
         for position, track in enumerate(album.tracks, start=1):
             print(
-                f"{position:>3}  {track.title:<42} "
+                f"{position:>3}  {track.title[:42]:<42} "
                 f"{specs.format_timestamp(track.start_ms):<8} "
                 f"{specs.format_timestamp(track.end_ms)}"
             )
