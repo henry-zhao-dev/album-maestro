@@ -17,7 +17,7 @@ class CreateCommand(LibraryCommand):
     """Implement ``album-maestro create``."""
 
     name = "create"
-    help = "Create a new album."
+    help = "Create an album interactively."
 
     def configure_arguments(self, parser: argparse.ArgumentParser) -> None:
         """Add arguments for creating an album."""
@@ -72,7 +72,7 @@ class ListCommand(LibraryCommand):
     """Implement ``album-maestro list``."""
 
     name = "list"
-    help = "List albums in a music library."
+    help = "List albums in the library."
 
     def configure_arguments(self, parser: argparse.ArgumentParser) -> None:
         """Add arguments for listing albums."""
@@ -91,7 +91,7 @@ class SearchCommand(LibraryCommand):
     """Implement ``album-maestro search``."""
 
     name = "search"
-    help = "Search album metadata."
+    help = "Find albums by title, artist, composer, or genre."
 
     def configure_arguments(self, parser: argparse.ArgumentParser) -> None:
         parser.add_argument("--title", help="Match album titles")
@@ -118,7 +118,7 @@ class ShowCommand(LibraryCommand):
     """Implement ``album-maestro show``."""
 
     name = "show"
-    help = "Show an album and its tracks."
+    help = "Show album details and tracks."
 
     def configure_arguments(self, parser: argparse.ArgumentParser) -> None:
         parser.add_argument("reference", metavar="ALBUM")
@@ -158,7 +158,7 @@ class EditCommand(LibraryCommand):
     """Implement the interactive ``album-maestro edit`` command."""
 
     name = "edit"
-    help = "Edit an album and its tracks."
+    help = "Edit album details and tracks interactively."
 
     def configure_arguments(self, parser: argparse.ArgumentParser) -> None:
         parser.add_argument("reference", metavar="ALBUM")
@@ -295,7 +295,7 @@ class DeleteCommand(LibraryCommand):
     """Implement the ``album-maestro delete`` command."""
 
     name = "delete"
-    help = "Delete an album."
+    help = "Remove an album from the library."
 
     def configure_arguments(self, parser: argparse.ArgumentParser) -> None:
         parser.add_argument("reference", metavar="ALBUM")

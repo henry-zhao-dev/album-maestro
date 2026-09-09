@@ -18,8 +18,11 @@ class HelpTests(unittest.TestCase):
         with redirect_stdout(output):
             result = main([])
         self.assertEqual(result, 0)
-        self.assertIn("Create a new music library.", output.getvalue())
-        self.assertIn("Create a new album.", output.getvalue())
+        self.assertIn(
+            "Turn recordings into albums you can keep and play.", output.getvalue()
+        )
+        self.assertIn("Initialize a library directory.", output.getvalue())
+        self.assertIn("Create an album interactively.", output.getvalue())
 
     def test_help_after_command_is_handled_by_command_parser(self):
         for arguments, usage, detail in (

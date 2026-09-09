@@ -16,7 +16,7 @@ class ImportCommand(LibraryCommand):
     """The ``import`` command."""
 
     name = "import"
-    help = "Import an album from JSON"
+    help = "Import an album specification from JSON."
 
     def configure_arguments(self, parser: argparse.ArgumentParser) -> None:
         source = parser.add_mutually_exclusive_group(required=True)
@@ -71,7 +71,7 @@ class ExportCommand(LibraryCommand):
     """Export SQLite album data as JSON specifications."""
 
     name = "export"
-    help = "Export albums to JSON specifications."
+    help = "Export album specifications as JSON."
 
     def configure_arguments(self, parser: argparse.ArgumentParser) -> None:
         selection = parser.add_mutually_exclusive_group(required=True)

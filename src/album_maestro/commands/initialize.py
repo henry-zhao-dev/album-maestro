@@ -11,10 +11,10 @@ logger = logging.getLogger(__name__)
 
 
 class InitCommand(Command):
-    """Create a declarative music library."""
+    """Initialize a music library directory."""
 
     name = "init"
-    help = "Create a new music library."
+    help = "Initialize a library directory."
 
     def configure(self, parser: argparse.ArgumentParser) -> None:
         """Add arguments for initializing a music library."""
