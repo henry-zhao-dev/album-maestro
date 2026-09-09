@@ -15,7 +15,7 @@ class PipelineError(ValueError):
     """Raised when catalog data cannot be transformed into output audio."""
 
 
-def _create_track(
+def create_track(
     track: TrackRequest,
     source: Path,
     destination: Path,

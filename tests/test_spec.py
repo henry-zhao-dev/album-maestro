@@ -124,6 +124,26 @@ class AlbumTests(unittest.TestCase):
             },
         )
 
+    def test_resolves_local_sources_without_reference_urls(self):
+        album = _parse_album(
+            {
+                "title": "Local Album",
+                "genre": "Classical",
+                "file_source": "sources/album.m4a",
+                "tracks": [
+                    {"title": "Opening"},
+                    {"title": "Second", "file_source": "sources/second.m4a"},
+                ],
+            }
+        )
+
+        tracks = album.requests()
+
+        self.assertIsNone(tracks[0].url)
+        self.assertEqual(tracks[0].file_source, "sources/album.m4a")
+        self.assertIsNone(tracks[1].url)
+        self.assertEqual(tracks[1].file_source, "sources/second.m4a")
+
     def test_accepts_local_source_without_reference_url(self):
         album = _parse_album(
             {

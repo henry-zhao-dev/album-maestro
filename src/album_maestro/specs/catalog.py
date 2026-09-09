@@ -138,10 +138,10 @@ def _track_data(track: AlbumTrack) -> dict[str, object]:
     data: dict[str, object] = {"title": track.title}
     for key, value in (
         ("artist", track.artist),
-        ("url", track.url),
-        ("file_source", track.file_source),
         ("composer", track.composer),
         ("genre", track.genre),
+        ("url", track.url),
+        ("file_source", track.file_source),
     ):
         if value is not None:
             data[key] = value

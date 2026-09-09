@@ -220,6 +220,14 @@ class Library:
         if not self.database_path.is_file():
             raise LibraryError(f"database does not exist: {self.database_path}")
 
+    def resolve_file_source(self, value: str | None) -> Path:
+        """Resolve one stored file source to an existing local path."""
+
+        normalized = self._normalize_file_source(value)
+        if normalized is None:
+            raise LibraryError("file source is required")
+        return self.root.joinpath(*PurePosixPath(normalized).parts)
+
     def _normalize_album_sources(self, album: Album) -> Album:
         """Normalize all album and track source paths for storage."""
 

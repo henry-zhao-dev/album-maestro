@@ -149,6 +149,18 @@ class CatalogMutationTests(unittest.TestCase):
 
         self.assertEqual(loaded.file_source, "sources/recording.m4a")
 
+    def test_resolves_existing_file_source_to_library_path(self):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir) / "library"
+            library = Library(root=root, name="Music")
+            library.initialize()
+            source = library.sources_path / "recording.m4a"
+            source.write_bytes(b"audio")
+
+            resolved = library.resolve_file_source("recording.m4a")
+
+        self.assertEqual(resolved, source.resolve())
+
     def test_rejects_file_sources_outside_sources_directory(self):
         with tempfile.TemporaryDirectory() as temporary_dir:
             root = Path(temporary_dir) / "library"

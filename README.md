@@ -220,6 +220,26 @@ album-maestro edit beethoven-symphony-no-5 \
   --library ~/Music/album-maestro
 ```
 
+Process local source audio into tagged track files:
+
+```shell
+album-maestro process beethoven-symphony-no-5 \
+  --library ~/Music/album-maestro
+```
+
+Processed files are written below `tracks/` by default, using the album artist,
+album title, and track title as their directory and filename components. Process
+all cataloged albums with:
+
+```shell
+album-maestro process --all \
+  --library ~/Music/album-maestro \
+  --output tracks
+```
+
+The command reads local `file_source` paths from `sources/`; reference URLs are
+retained as metadata and are not downloaded or otherwise used by processing.
+
 Delete an album from the catalog:
 
 ```shell

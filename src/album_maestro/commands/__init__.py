@@ -1,6 +1,6 @@
 """Registry of commands available directly beneath ``album-maestro``."""
 
-from album_maestro.commands import album, sync
+from album_maestro.commands import album, process, sync
 from album_maestro.commands.base import Command
 from album_maestro.commands.initialize import InitCommand
 
@@ -12,6 +12,7 @@ _registered_commands = (
     album.ShowCommand(),
     album.EditCommand(),
     album.DeleteCommand(),
+    process.ProcessCommand(),
     sync.ImportCommand(),
     sync.ExportCommand(),
 )

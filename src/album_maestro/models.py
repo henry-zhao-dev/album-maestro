@@ -82,11 +82,12 @@ class AlbumTrack:
 class TrackRequest:
     """A fully resolved track request for source audio processing."""
 
-    url: str
+    url: str | None
     title: str
     artist: str
     album_artist: str
     album: str
+    file_source: str | None = None
     composer: str | None = None
     genre: str | None = None
     track_number: int | None = None
@@ -168,8 +169,6 @@ class Album:
         requests: list[TrackRequest] = []
         for index, track in enumerate(self.tracks, start=1):
             url = track.url or self.url
-            if url is None:
-                raise ValueError(f"track {index} has no reference URL")
             requests.append(
                 TrackRequest(
                     url=url,
@@ -177,6 +176,7 @@ class Album:
                     artist=track.artist or album_artist,
                     album_artist=album_artist,
                     album=self.title,
+                    file_source=track.file_source or self.file_source,
                     composer=track.composer or self.composer,
                     genre=track.genre or self.genre,
                     track_number=index,

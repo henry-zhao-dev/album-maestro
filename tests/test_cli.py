@@ -25,6 +25,7 @@ class HelpTests(unittest.TestCase):
         for arguments, usage, detail in (
             (["init", "-h"], "usage: album-maestro init", "--name"),
             (["create", "-h"], "usage: album-maestro create", "--library"),
+            (["process", "-h"], "usage: album-maestro process", "--output"),
         ):
             with self.subTest(command=arguments[0]):
                 output = StringIO()
@@ -124,6 +125,65 @@ class ImportCommandTests(unittest.TestCase):
         self.assertEqual(result, 0)
         self.assertEqual(album.artist, "New Artist")
         self.assertEqual([track.title for track in album.tracks], ["Fresh Track"])
+
+
+class ProcessCommandTests(unittest.TestCase):
+    @patch("album_maestro.commands.process.pipeline.create_track")
+    def test_process_uses_local_source_without_downloading(self, create_track):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir) / "library"
+            library = Library(root=root, name="Music")
+            library.initialize()
+            source = library.sources_path / "recording.m4a"
+            source.write_bytes(b"audio")
+            library.create_album(
+                Album(
+                    title="Album",
+                    artist="Artist",
+                    genre="Classical",
+                    file_source="recording.m4a",
+                    tracks=(AlbumTrack(title="Opening"),),
+                )
+            )
+            output = root / "tracks"
+            create_track.return_value = output / "Artist" / "Album" / "Opening.m4a"
+
+            result = main(["process", "album", "--library", str(root)])
+
+        self.assertEqual(result, 0)
+        create_track.assert_called_once()
+        request, resolved_source, destination, work_dir = create_track.call_args.args
+        self.assertIsNone(request.url)
+        self.assertEqual(request.file_source, "sources/recording.m4a")
+        self.assertEqual(resolved_source, source.resolve())
+        self.assertEqual(destination, output.resolve())
+        self.assertFalse(work_dir.exists())
+
+    @patch("album_maestro.commands.process.pipeline.create_track")
+    def test_process_continues_after_one_track_fails(self, create_track):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir) / "library"
+            library = Library(root=root, name="Music")
+            library.initialize()
+            (library.sources_path / "recording.m4a").write_bytes(b"audio")
+            library.create_album(
+                Album(
+                    title="Album",
+                    artist="Artist",
+                    genre="Classical",
+                    file_source="recording.m4a",
+                    tracks=(
+                        AlbumTrack(title="Opening"),
+                        AlbumTrack(title="Second"),
+                    ),
+                )
+            )
+            create_track.side_effect = [RuntimeError("broken source"), Path("done")]
+
+            result = main(["process", "album", "--library", str(root)])
+
+        self.assertEqual(result, 1)
+        self.assertEqual(create_track.call_count, 2)
 
 
 class ExportCommandTests(unittest.TestCase):
