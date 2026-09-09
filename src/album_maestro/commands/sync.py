@@ -16,7 +16,7 @@ class ImportCommand(LibraryCommand):
     """The ``import`` command."""
 
     name = "import"
-    help = "Import an album specification from JSON."
+    help = "Import album specifications from JSON."
 
     def configure_arguments(self, parser: argparse.ArgumentParser) -> None:
         source = parser.add_mutually_exclusive_group(required=True)

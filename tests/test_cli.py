@@ -23,6 +23,7 @@ class HelpTests(unittest.TestCase):
         )
         self.assertIn("Initialize a library directory.", output.getvalue())
         self.assertIn("Create an album interactively.", output.getvalue())
+        self.assertIn("Import album specifications from JSON.", output.getvalue())
 
     def test_help_after_command_is_handled_by_command_parser(self):
         for arguments, usage, detail in (
