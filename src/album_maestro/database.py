@@ -28,7 +28,8 @@ CREATE TABLE IF NOT EXISTS albums (
     artist TEXT,
     composer TEXT,
     genre TEXT NOT NULL,
-    url TEXT
+    url TEXT,
+    file_source TEXT
 );
 
 -- Each row represents a track inside an existing album
@@ -42,6 +43,7 @@ CREATE TABLE IF NOT EXISTS tracks (
     composer TEXT,
     genre TEXT,
     url TEXT,
+    file_source TEXT,
     start_ms INTEGER,
     end_ms INTEGER,
     -- Each album can have only one track at a given position
@@ -64,9 +66,6 @@ CREATE INDEX IF NOT EXISTS albums_composer_idx ON albums (composer);
 CREATE INDEX IF NOT EXISTS albums_genre_idx ON albums (genre);
 """
 
-_INITIAL_SCHEMA_VERSION = 1
-_CURRENT_SCHEMA_VERSION = 2
-
 
 def initialize(path: str | Path, name: str) -> Path:
     """Create and initialize a new Album Maestro database."""
@@ -85,12 +84,11 @@ def initialize(path: str | Path, name: str) -> Path:
     return database_path
 
 
-def load_name(path: str | Path) -> str:
+def library_name(path: str | Path) -> str:
     """Read the library name from an initialized database."""
 
     try:
         with sqlite3.connect(path) as connection:
-            _ensure_schema(connection)
             row = connection.execute("SELECT name FROM library WHERE id = 1").fetchone()
     except (OSError, sqlite3.Error) as error:
         raise DatabaseError(str(error)) from error
@@ -146,8 +144,8 @@ def create_album(
                 track_id = connection.execute(
                     """
                     INSERT INTO tracks (
-                        album_id, position, title, artist, composer, genre, url,
-                        file_source, start_ms, end_ms
+                        album_id, position, title, artist, composer, genre,
+                        url, file_source, start_ms, end_ms
                     )
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
@@ -209,7 +207,7 @@ def search_albums(
     return _album_summary_rows(path, where=where, parameters=parameters)
 
 
-def get_album(path: str | Path, reference: str) -> Album:
+def load_album(path: str | Path, reference: str) -> Album:
     """Load one complete album and its tracks from SQLite."""
 
     try:
@@ -259,12 +257,12 @@ def update_album(path: str | Path, reference: str, **fields: Any) -> None:
     """Update editable album fields by reference."""
 
     _update_row(
-        path,
-        "albums",
-        "reference",
-        reference,
-        fields,
-        {"title", "artist", "composer", "genre", "url", "file_source"},
+        path=path,
+        table="albums",
+        key_column="reference",
+        key_value=reference,
+        fields=fields,
+        allowed={"title", "artist", "composer", "genre", "url", "file_source"},
     )
 
 
@@ -409,24 +407,9 @@ def _configure(connection: sqlite3.Connection) -> None:
 
 
 def _ensure_schema(connection: sqlite3.Connection) -> None:
-    """Create the base schema and apply incremental migrations."""
+    """Create the current database schema."""
 
     connection.executescript(SCHEMA)
-    _migrate_schema(connection)
-
-
-def _migrate_schema(connection: sqlite3.Connection) -> None:
-    """Apply incremental schema migrations."""
-    version = connection.execute("PRAGMA user_version").fetchone()[0]
-
-    if version < _INITIAL_SCHEMA_VERSION:
-        # Existing databases predate explicit versioning.
-        version = _INITIAL_SCHEMA_VERSION
-
-    if version < _CURRENT_SCHEMA_VERSION:
-        connection.execute("ALTER TABLE albums ADD COLUMN file_source TEXT")
-        connection.execute("ALTER TABLE tracks ADD COLUMN file_source TEXT")
-        connection.execute(f"PRAGMA user_version = {_CURRENT_SCHEMA_VERSION}")
 
 
 def _album_summary_rows(
