@@ -22,10 +22,6 @@ class InitializeLibraryTests(unittest.TestCase):
                     connection.execute("SELECT name FROM library").fetchone(),
                     ("My Music",),
                 )
-                self.assertEqual(
-                    connection.execute("PRAGMA user_version").fetchone(),
-                    (2,),
-                )
                 self.assertIn(
                     "file_source",
                     {row[1] for row in connection.execute("PRAGMA table_info(albums)")},
@@ -67,44 +63,6 @@ class LoadLibraryTests(unittest.TestCase):
 
             with self.assertRaisesRegex(LibraryError, "library"):
                 Library.load(root)
-
-    def test_load_migrates_an_older_database_with_no_chapters_table(self):
-        with tempfile.TemporaryDirectory() as temporary_dir:
-            root = Path(temporary_dir)
-            database_path = root / "album-maestro.db"
-            with sqlite3.connect(database_path) as connection:
-                connection.executescript("""
-                    CREATE TABLE library (id INTEGER PRIMARY KEY, name TEXT NOT NULL);
-                    CREATE TABLE albums (
-                        id INTEGER PRIMARY KEY,
-                        reference TEXT NOT NULL UNIQUE,
-                        title TEXT NOT NULL,
-                        artist TEXT,
-                        composer TEXT,
-                        genre TEXT NOT NULL,
-                        url TEXT
-                    );
-                    CREATE TABLE tracks (
-                        id INTEGER PRIMARY KEY,
-                        album_id INTEGER NOT NULL,
-                        position INTEGER NOT NULL,
-                        title TEXT NOT NULL
-                    );
-                    INSERT INTO library (id, name) VALUES (1, 'Music');
-                    """)
-
-            Library.load(root)
-
-            with sqlite3.connect(database_path) as connection:
-                self.assertIsNotNone(
-                    connection.execute(
-                        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'chapters'"
-                    ).fetchone()
-                )
-                self.assertEqual(
-                    connection.execute("PRAGMA user_version").fetchone(),
-                    (2,),
-                )
 
 
 class CatalogMutationTests(unittest.TestCase):

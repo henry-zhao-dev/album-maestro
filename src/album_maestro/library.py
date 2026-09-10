@@ -82,7 +82,7 @@ class Library:
         """Load one album, its tracks, and its chapters from SQLite."""
 
         try:
-            return database.get_album(self.database_path, reference)
+            return database.load_album(self.database_path, reference)
         except database.DatabaseError as error:
             raise LibraryError(str(error)) from error
 
@@ -279,7 +279,7 @@ class Library:
 
         resolved_root = Path(root).expanduser().resolve()
         try:
-            name = database.load_name(resolved_root / "album-maestro.db")
+            name = database.library_name(resolved_root / "album-maestro.db")
         except database.DatabaseError as error:
             raise LibraryError(str(error)) from error
 
