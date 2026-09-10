@@ -50,7 +50,7 @@ class AlbumTests(unittest.TestCase):
         album = _parse_album(
             {
                 "title": "Symphony No. 5",
-                "artist": "Frankfurt Radio Symphony Orchestra",
+                "artist": "Skidmore College Orchestra",
                 "composer": "Ludwig van Beethoven",
                 "genre": "Classical",
                 "url": "https://example.com/full",
@@ -71,17 +71,17 @@ class AlbumTests(unittest.TestCase):
         tracks = album.requests()
 
         self.assertEqual(
-            album.resolved_album_artist(), "Frankfurt Radio Symphony Orchestra"
+            album.resolved_album_artist(), "Skidmore College Orchestra"
         )
         self.assertEqual(tracks[0].url, "https://example.com/full")
-        self.assertEqual(tracks[0].artist, "Frankfurt Radio Symphony Orchestra")
+        self.assertEqual(tracks[0].artist, "Skidmore College Orchestra")
         self.assertEqual(tracks[0].composer, "Ludwig van Beethoven")
         self.assertEqual(tracks[0].genre, "Classical")
         self.assertEqual(tracks[0].track_number, 1)
         self.assertEqual(tracks[0].track_total, 2)
         self.assertEqual(tracks[0].metadata()["track"], "1/2")
         self.assertEqual(tracks[1].artist, "Guest Orchestra")
-        self.assertEqual(tracks[1].album_artist, "Frankfurt Radio Symphony Orchestra")
+        self.assertEqual(tracks[1].album_artist, "Skidmore College Orchestra")
         self.assertEqual(tracks[1].composer, "Another Composer")
         self.assertEqual(tracks[1].genre, "Romantic")
         self.assertEqual(tracks[1].start_ms, 510_000)
