@@ -9,6 +9,7 @@ from album_maestro.commands import prompts
 from album_maestro.commands.base import LibraryCommand
 from album_maestro.library import Library, LibraryError
 from album_maestro.models import Album, AlbumSummary, VARIOUS_ARTISTS
+from album_maestro.text import required_text
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +42,16 @@ class CreateCommand(LibraryCommand):
 
         artist = prompts.text("Album artist (optional)")
         composer = prompts.text("Album composer (optional)")
-        genre = prompts.text("Album genre")
+        while True:
+            try:
+                genre = required_text(
+                    prompts.text("Album genre"),
+                    label="album genre",
+                )
+            except ValueError:
+                print("Album genre must be provided.")
+            else:
+                break
         reference_url = prompts.text("Album reference URL (optional)")
         file_source = prompts.text(
             "Album file source (filename under sources/, optional)"
@@ -147,7 +157,7 @@ class ShowCommand(LibraryCommand):
         print("  #  TITLE                                      START    END")
         for position, track in enumerate(album.tracks, start=1):
             print(
-                f"{position:>3}  {track.title:<42} "
+                f"{position:>3}  {track.title[:42]:<42} "
                 f"{specs.format_timestamp(track.start_ms):<8} "
                 f"{specs.format_timestamp(track.end_ms)}"
             )

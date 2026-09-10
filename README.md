@@ -1,110 +1,47 @@
 # Album Maestro
 
-Album Maestro is a Python CLI for turning long-form recordings into albums you
-can actually keep and play. It lets you organize albums, tracks, metadata, and
-chapter boundaries in a local SQLite database, then export the catalog as
-portable JSON specifications.
+Album Maestro started from a simple frustration: a long recording may contain a
+complete album, but a music library sees only one file. Classical music makes
+this especially noticeable—a symphony, sonata, or recital may contain several
+movements that listeners expect to find, name, and play separately. Turning
+that recording into something you can browse takes more than splitting audio;
+album and track identity, credits, references, timing, chapters, and tags all
+need to stay together.
 
-The goal is not to build another streaming service or music player. It is a
-free, open-source album authoring and catalog management tool: describe how a
-permitted media source should become an album, and keep the resulting
-specification under your control.
+Album Maestro is a local Python command-line tool for doing that. You describe
+an album built from one or more source recordings, including compilations with
+different artists per track. The details live in a searchable SQLite catalog,
+where album-level values provide defaults and individual tracks can override
+them. When you are ready, Album Maestro uses that catalog to produce tagged
+files that ordinary music players can browse. Your source files stay in the
+library you choose, and the project is not tied to a particular genre.
 
-The code keeps catalog rules, library operations, CLI interaction,
-specification import/export, and audio processing separate so each area can
-evolve without forcing changes elsewhere. Besides making the current behavior
-easier to test, this gives future interfaces, such as a GUI, a way to reuse the
-same core logic.
-
-## Engineering highlights
-
-- SQLite constraints and readable library-level validation errors
-- A local SQLite catalog with relational album and track data
-- Resolved track metadata, time ranges, and chapter boundaries
-- Metadata and chapter embedding through FFmpeg and ffprobe subprocesses
-- Interactive CLI workflows with explicit overwrite and partial-failure
-  handling
-- Automated tests across the CLI, specifications, library operations,
-  prompts, and audio pipeline
-
-## Architecture
-
-| Area | Responsibility |
-| --- | --- |
-| [`commands/`](src/album_maestro/commands/) | CLI argument handling, prompts, and user-facing output |
-| [`database.py`](src/album_maestro/database.py) | SQLite schema and catalog persistence |
-| [`library.py`](src/album_maestro/library.py) | Library-level operations shared independently of the CLI |
-| [`models.py`](src/album_maestro/models.py) | Resolved album, track, and chapter models |
-| [`audio.py`](src/album_maestro/audio.py) | Audio inspection and editing through FFmpeg and ffprobe |
-| [`pipeline.py`](src/album_maestro/pipeline.py) | Source-audio track processing and metadata orchestration |
-
-## Project status and responsible use
-
-Album Maestro is an early-stage CLI rather than a production service. Album
-and track editing is being built incrementally through the CLI. The project is
-not affiliated with or endorsed by any media platform or FFmpeg.
-
-This repository does not include media files and its example reference URLs are
-placeholders. Album Maestro does not grant rights to third-party content or
-override the terms of any platform. You are responsible for the source
-references and media you provide, and for complying with applicable laws,
-content licenses, and platform terms.
-
-## Requirements
+## Requirements and install
 
 - Python 3.11 or newer
 - [FFmpeg](https://ffmpeg.org/), including `ffmpeg` and `ffprobe` on `PATH`,
-  when using the audio-processing helpers
-
-For example, install FFmpeg with Homebrew on macOS or apt on Debian/Ubuntu:
-
-```shell
-brew install ffmpeg
-# or: sudo apt install ffmpeg
-```
-
-## Install
-
-From a source checkout, install the project with Poetry:
+  when processing audio
 
 ```shell
 git clone https://github.com/henry-zhao-dev/album-maestro.git
 cd album-maestro
 poetry install
-```
-
-You can also install the package with pip from the checkout:
-
-```shell
-python -m pip install .
-```
-
-Verify the installation:
-
-```shell
 poetry run album-maestro --help
 ```
 
-If you installed with pip, use `album-maestro` directly. If you installed with
-Poetry, prefix commands with `poetry run` unless the Poetry environment is
-activated.
+You can also install the checkout with `python -m pip install .` and use
+`album-maestro` directly. Install FFmpeg with `brew install ffmpeg` on macOS or
+`sudo apt install ffmpeg` on Debian and Ubuntu.
 
 ## Quick start
 
-Create a library in a directory of your choice:
+Start by creating a library:
 
 ```shell
 album-maestro init ~/Music/album-maestro
 ```
 
-The library name defaults to the directory name. Set it explicitly with
-`--name` when needed:
-
-```shell
-album-maestro init ~/Music/album-maestro --name "My Music Library"
-```
-
-The command creates this layout:
+This creates:
 
 ```text
 ~/Music/album-maestro/
@@ -112,182 +49,116 @@ The command creates this layout:
 └── sources/
 ```
 
-Create an album draft interactively:
+Put permitted source files in `sources/`, then create and edit an album:
 
 ```shell
 album-maestro create --library ~/Music/album-maestro
+album-maestro edit ALBUM --library ~/Music/album-maestro
+album-maestro process ALBUM --library ~/Music/album-maestro
 ```
 
-The command asks for the title, optional album artist, optional composer,
-genre, optional reference URL, and optional local file source. Leave the album
-artist blank for a compilation whose tracks have different artists. Local file
-sources are stored as paths relative to the library, such as
-`recording.m4a`; Album Maestro stores it as `sources/recording.m4a`.
+`create` asks for the album details and starts with an empty album. Use `edit`
+to add, change, or remove tracks. Enter source paths as bare filenames such as
+`recording.m4a`; they must already exist in the library's `sources/` directory.
 
-List the catalog with:
+Every command that works with a library accepts `--library DIRECTORY` and
+defaults to the current directory. Commands are at the root, so use
+`album-maestro create`, not `album-maestro album create`.
+
+## Commands
+
+| Command | Purpose |
+| --- | --- |
+| `init [DIRECTORY]` | Create a library; `--name` sets its name |
+| `create` | Create an album interactively |
+| `list` | List albums and track counts |
+| `search` | Search title, artist, composer, and genre |
+| `show ALBUM` | Show album details and tracks |
+| `edit ALBUM` | Edit album metadata and tracks interactively |
+| `delete ALBUM` | Remove an album, tracks, and chapters from SQLite |
+| `process ALBUM...` / `process --all` | Create tagged files from local sources; `--output` changes the destination |
+| `import --json FILE` / `import --directory DIRECTORY` | Validate JSON and write albums to SQLite |
+| `export ALBUM...` / `export --all` | Write SQLite albums as JSON |
+
+Run `album-maestro COMMAND --help` for the full options. Search filters are
+case-insensitive and can be combined.
+
+## Catalog and JSON specifications
+
+SQLite is the working catalog and the single source of truth. JSON gives you a
+portable way to author or move album specifications; it is not a second catalog
+to keep synchronized.
+
+An imported album needs a title, genre, and at least one track. Album and track
+fields cover `artist`, `composer`, `genre`, reference `url`, local
+`file_source`, track timestamps, and chapters. Track values override album
+defaults; an album without an artist uses `Various Artists` in output metadata.
+Each track needs a URL or local source unless the album provides one. Local
+sources must already exist inside `sources/`; paths that escape the directory
+are rejected. Chapters can be imported and processed, but are not yet edited
+by the interactive prompt.
+
+Import one file or a directory of JSON files:
 
 ```shell
-album-maestro list --library ~/Music/album-maestro
+album-maestro import --json album.json --library ~/Music/album-maestro
+album-maestro import --directory albums --library ~/Music/album-maestro
 ```
 
-## SQLite catalog
+Existing album references are rejected unless `--overwrite` is passed. A
+directory import continues after individual failures and returns a failure
+status if any file could not be imported.
 
-Album Maestro stores the catalog in `album-maestro.db`. The database is the
-single source of truth for album and track metadata; there is no JSON catalog
-to edit or keep synchronized.
-
-Create an album through the CLI:
+Export one album or all albums:
 
 ```shell
-album-maestro create --library ~/Music/album-maestro
-```
-
-The album fields are plain text:
-
-- `artist` is the default artist and the value used for the output
-  `album_artist` tag.
-- `composer` is an independent optional credit.
-- `genre` is explicit and required.
-- `url` is the default reference URL.
-- `file_source` is the default local audio filename stored under `sources/`.
-
-Track-level artist, composer, genre, reference URL, local file source, timestamps, and
-chapters are managed through the database-backed editing workflow. JSON uses `url`
-for the reference URL and `file_source` for the local audio path. A track’s local
-file source overrides the album-level default when provided.
-
-List the catalog:
-
-```shell
-album-maestro list --library ~/Music/album-maestro
-```
-
-The list command queries SQLite and displays each album’s reference, title,
-artist, genre, and current track count.
-
-Import an album specification into SQLite:
-
-```shell
-album-maestro import --json albums/beethoven-symphony-no-5.json \
+album-maestro export ALBUM --json album.json \
   --library ~/Music/album-maestro
-```
-
-Import every JSON file directly inside a directory:
-
-```shell
-album-maestro import --directory albums \
-  --library ~/Music/album-maestro
-```
-
-Import validates each file against the packaged album schema. By default,
-existing album references are rejected. Pass `--overwrite` to replace an
-existing album, including all of its tracks and chapters.
-
-Export one album back to a JSON specification:
-
-```shell
-album-maestro export beethoven-symphony-no-5 \
-  --json beethoven-symphony-no-5.json \
-  --library ~/Music/album-maestro
-```
-
-Export every album to one file per album:
-
-```shell
 album-maestro export --all --directory albums \
   --library ~/Music/album-maestro
 ```
 
-Export preserves album-level defaults and track-level overrides so the JSON
-can be edited and imported again. Existing output files are not replaced
-unless `--overwrite` is passed.
+Directory exports use `<album-reference>.json`. Existing files are not replaced
+unless `--overwrite` is passed, and exports preserve defaults, overrides,
+timestamps, and chapters.
 
-## Album workflow
+## Processing local audio
 
-Inspect the catalog and one album with:
+Once an album has sources, `process` uses a track's `file_source`, falling back
+to the album source. It checks duration with `ffprobe`, optionally trims the
+source, applies standard `title`, `artist`, `album_artist`, `album`, `composer`,
+`genre`, and `track` tags, adds chapters, and writes the result. Embedded
+artwork is retained when present.
 
-```shell
-album-maestro list --library ~/Music/album-maestro
-album-maestro search --artist Beethoven --library ~/Music/album-maestro
-album-maestro show beethoven-symphony-no-5 \
-  --library ~/Music/album-maestro
+The default output layout is:
+
+```text
+tracks/<album artist>/<album title>/<track title><source extension>
 ```
 
-Edit album metadata and manage tracks interactively:
+Processing continues after track errors and returns a failure status if any
+track failed. URLs are never used as audio sources. Deleting an album removes
+catalog records only; source and generated audio files remain.
 
-```shell
-album-maestro edit beethoven-symphony-no-5 \
-  --library ~/Music/album-maestro
-```
+## How it works
 
-Process local source audio into tagged track files:
+The command handlers call the library layer, which validates inputs and writes
+relational data with raw SQLite queries. The `specs/` package handles JSON
+schema and timestamps. For processing, album defaults become a resolved track
+request, then `pipeline.py` and `audio.py` run the FFmpeg/ffprobe steps.
 
-```shell
-album-maestro process beethoven-symphony-no-5 \
-  --library ~/Music/album-maestro
-```
+## Examples and development
 
-Processed files are written below `tracks/` by default, using the album artist,
-album title, and track title as their directory and filename components. Process
-all cataloged albums with:
+[`examples/README.md`](examples/README.md) shows how to import the example
+albums and optionally obtain their Wikimedia Commons source audio. Use only
+media you have permission to use; attribution details are in
+[`examples/sources/ATTRIBUTION.md`](examples/sources/ATTRIBUTION.md).
 
-```shell
-album-maestro process --all \
-  --library ~/Music/album-maestro \
-  --output tracks
-```
-
-The command reads local `file_source` paths from `sources/`; reference URLs are
-retained as metadata and are not downloaded or otherwise used by processing.
-
-Delete an album from the catalog:
-
-```shell
-album-maestro delete beethoven-symphony-no-5 \
-  --library ~/Music/album-maestro
-```
-
-This removes the album, its tracks, and chapters from SQLite.
-
-## Troubleshooting
-
-### `external command not found: ffmpeg` or `ffprobe`
-
-Install FFmpeg and ensure both commands are available on `PATH`:
-
-```shell
-ffmpeg -version
-ffprobe -version
-```
-
-### Existing files are not replaced
-
-This is the default safety behavior. Use `--overwrite` when you intentionally
-want to replace existing output files.
-
-## Current limitations
-
-- Album and track editing is interactive; batch editing is future work.
-- Audio processing is exposed through reusable helpers and may be expanded in
-  future CLI workflows.
-
-## Third-party software
-
-Album Maestro is licensed under the [MIT License](LICENSE).
-
-Album Maestro uses
-[jsonschema](https://github.com/python-jsonschema/jsonschema), which is licensed
-under the [MIT License](https://github.com/python-jsonschema/jsonschema/blob/main/COPYING).
-
-FFmpeg and ffprobe are external system requirements and are not distributed
-with Album Maestro. FFmpeg is generally licensed under LGPL-2.1-or-later, while
-the license of a particular build may differ based on its enabled components;
-see [FFmpeg's legal information](https://ffmpeg.org/legal.html).
-
-## Development
-
-Run the test suite from the project checkout:
+Run the tests with:
 
 ```shell
 poetry run pytest
 ```
+
+Album Maestro is licensed under the [MIT License](LICENSE). `jsonschema` is a
+runtime dependency; FFmpeg and ffprobe are separate system requirements.

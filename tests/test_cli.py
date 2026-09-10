@@ -23,6 +23,7 @@ class HelpTests(unittest.TestCase):
         )
         self.assertIn("Initialize a library directory.", output.getvalue())
         self.assertIn("Create an album interactively.", output.getvalue())
+        self.assertIn("Import album specifications from JSON.", output.getvalue())
 
     def test_help_after_command_is_handled_by_command_parser(self):
         for arguments, usage, detail in (
@@ -500,19 +501,38 @@ class AlbumCommandTests(unittest.TestCase):
 
     @patch(
         "builtins.input",
-        side_effect=("No Genre Album", "Artist", "", "", "", ""),
+        side_effect=("No Genre Album", "Artist", "", "", "Classical", "", ""),
     )
-    def test_create_rejects_missing_genre(self, _input):
+    def test_create_retries_missing_genre(self, input_mock):
         with tempfile.TemporaryDirectory() as temporary_dir:
             root = Path(temporary_dir) / "library"
             Library(root=root, name="Music").initialize()
-            result = main(["create", "--library", str(root)])
+            output = StringIO()
+            with redirect_stdout(output):
+                result = main(["create", "--library", str(root)])
             with sqlite3.connect(root / "album-maestro.db") as connection:
-                self.assertEqual(
-                    connection.execute("SELECT COUNT(*) FROM albums").fetchone(),
-                    (0,),
-                )
-        self.assertEqual(result, 1)
+                album = connection.execute(
+                    "SELECT title, artist, genre, url FROM albums"
+                ).fetchone()
+
+        self.assertEqual(result, 0)
+        self.assertEqual(
+            input_mock.call_args_list,
+            [
+                call("Album title: "),
+                call("Album artist (optional): "),
+                call("Album composer (optional): "),
+                call("Album genre: "),
+                call("Album genre: "),
+                call("Album reference URL (optional): "),
+                call("Album file source (filename under sources/, optional): "),
+            ],
+        )
+        self.assertEqual(
+            album,
+            ("No Genre Album", "Artist", "Classical", None),
+        )
+        self.assertIn("Album genre must be provided.", output.getvalue())
 
 
 def _create_album_library(root: Path) -> None:
