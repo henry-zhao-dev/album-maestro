@@ -4,14 +4,18 @@
   "genre": "Classical",
   "tracks": [
     {
-      "title": "Symphony No. 5",
-      "artist": "Ludwig van Beethoven",
-      "url": "https://example.com/replace-with-beethoven-recording"
+      "title": "String Quintet No. 5 in E Major, Op. 11, G. 275: III. Minuet",
+      "artist": "Rafael Krux",
+      "composer": "Luigi Boccherini",
+      "url": "https://commons.wikimedia.org/wiki/File:Boccerini_Op11_n%C2%B05_G275_Satz3_Minuett.ogg",
+      "file_source": "boccherini-minuet.ogg"
     },
     {
-      "title": "Eine kleine Nachtmusik",
-      "artist": "Wolfgang Amadeus Mozart",
-      "url": "https://example.com/replace-with-mozart-recording"
+      "title": "Piano Sonata No. 11: III. Rondo alla turca",
+      "artist": "Romuald Greiss",
+      "composer": "Wolfgang Amadeus Mozart",
+      "url": "https://commons.wikimedia.org/wiki/File:Mozart-Marsz_turecki-(Romuald_Greiss).ogg",
+      "file_source": "mozart-piano-sonata-no-11-iii.ogg"
     }
   ]
 }

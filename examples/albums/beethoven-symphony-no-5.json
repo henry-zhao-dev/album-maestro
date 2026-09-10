@@ -1,19 +1,28 @@
 {
   "title": "Symphony No. 5",
-  "artist": "Frankfurt Radio Symphony Orchestra",
+  "artist": "Skidmore College Orchestra",
   "composer": "Ludwig van Beethoven",
   "genre": "Classical",
-  "url": "https://example.com/replace-with-full-recording",
   "tracks": [
     {
       "title": "I. Allegro con brio",
-      "start": "0:04",
-      "end": "8:20"
+      "url": "https://commons.wikimedia.org/wiki/File:Ludwig_van_Beethoven_-_symphony_no._5_in_c_minor,_op._67_-_i._allegro_con_brio.ogg",
+      "file_source": "beethoven-symphony-no-5-i.ogg"
     },
     {
       "title": "II. Andante con moto",
-      "start": "8:30",
-      "end": "19:15"
+      "url": "https://commons.wikimedia.org/wiki/File:Ludwig_van_Beethoven_-_symphony_no._5_in_c_minor,_op._67_-_ii._andante_con_moto.ogg",
+      "file_source": "beethoven-symphony-no-5-ii.ogg"
+    },
+    {
+      "title": "III. Allegro",
+      "url": "https://commons.wikimedia.org/wiki/File:Ludwig_van_Beethoven_-_symphony_no._5_in_c_minor,_op._67_-_iii._allegro.ogg",
+      "file_source": "beethoven-symphony-no-5-iii.ogg"
+    },
+    {
+      "title": "IV. Allegro",
+      "url": "https://commons.wikimedia.org/wiki/File:Ludwig_van_Beethoven_-_symphony_no._5_in_c_minor,_op._67_-_iv._allegro.ogg",
+      "file_source": "beethoven-symphony-no-5-iv.ogg"
     }
   ]
 }
