@@ -38,11 +38,11 @@ eval $(poetry env activate)
 From the repository root, create a library and copy the example audio into it:
 
 ```shell
-album-maestro init ~/Music/album-maestro-example
+album-maestro init ~/Music/album-maestro
 cp examples/sources/vivaldi-autumn.mp3 \
   examples/sources/boccherini-minuet.ogg \
   examples/sources/mozart-piano-sonata-no-11-iii.ogg \
-  ~/Music/album-maestro-example/sources/
+  ~/Music/album-maestro/sources/
 ```
 
 > The source files are committed, so no download is required. Their licensing
@@ -63,14 +63,27 @@ Import the Vivaldi example into SQLite with:
 
 ```shell
 album-maestro import --json examples/albums/vivaldi-autumn.json \
-  --library ~/Music/album-maestro-example
+  --library ~/Music/album-maestro
+```
+
+Verify that the album was loaded into the SQLite catalog:
+
+```shell
+album-maestro list --library ~/Music/album-maestro
+```
+
+```text
+$ album-maestro list --library ~/Music/album-maestro
+REFERENCE                TITLE                     ARTIST                        GENRE      TRACKS
+-----------------------  ------------------------  ----------------------------  ---------  ------
+the-four-seasons-autumn  The Four Seasons: Autumn  The Modena Chamber Orchestra  Classical  3
 ```
 
 Or import every example album at once:
 
 ```shell
 album-maestro import --directory examples/albums \
-  --library ~/Music/album-maestro-example
+  --library ~/Music/album-maestro
 ```
 
 Existing album references are rejected unless `--overwrite` is passed. A
@@ -81,14 +94,14 @@ Process the Vivaldi example into tagged track files:
 
 ```shell
 album-maestro process the-four-seasons-autumn \
-  --library ~/Music/album-maestro-example
+  --library ~/Music/album-maestro
 ```
 
 Process the Classical Favorites example:
 
 ```shell
 album-maestro process classical-favorites \
-  --library ~/Music/album-maestro-example
+  --library ~/Music/album-maestro
 ```
 
 Export an imported album back to JSON with:
@@ -96,7 +109,7 @@ Export an imported album back to JSON with:
 ```shell
 album-maestro export the-four-seasons-autumn \
   --json vivaldi-autumn.json \
-  --library ~/Music/album-maestro-example
+  --library ~/Music/album-maestro
 ```
 
 Directory exports use `<album-reference>.json`. Existing files are not replaced
