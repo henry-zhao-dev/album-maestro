@@ -1,7 +1,7 @@
 # Quick start
 
 This guide walks through a small interactive workflow: create an album, add
-tracks, process local audio, and inspect the resulting catalog. It uses a single
+tracks, inspect the catalog, and then process local audio. It uses a single
 committed source recording and the three movement ranges defined in
 [`examples/albums/vivaldi-autumn.json`](../examples/albums/vivaldi-autumn.json).
 The source file and its attribution are in
@@ -88,22 +88,9 @@ Added track 3.
 Choose an action: d
 ```
 
-## 4. Process the album
+## 4. List the albums
 
-Once the album metadata and tracks are ready, run
-`album-maestro process the-four-seasons-autumn` to create tagged files from the
-single local source:
-
-```text
-$ album-maestro process the-four-seasons-autumn
-[INFO] Processed the-four-seasons-autumn track 1: /Users/you/Music/album-maestro/tracks/The Modena Chamber Orchestra/The Four Seasons: Autumn/I. Allegro.mp3
-[INFO] Processed the-four-seasons-autumn track 2: /Users/you/Music/album-maestro/tracks/The Modena Chamber Orchestra/The Four Seasons: Autumn/II. Adagio molto.mp3
-[INFO] Processed the-four-seasons-autumn track 3: /Users/you/Music/album-maestro/tracks/The Modena Chamber Orchestra/The Four Seasons: Autumn/III. Allegro.mp3
-```
-
-## 5. List the albums
-
-Run `album-maestro list` for a compact overview of the processed album:
+Run `album-maestro list` for a compact overview of the catalog entry:
 
 ```text
 $ album-maestro list
@@ -112,10 +99,10 @@ REFERENCE                TITLE                     ARTIST                       
 the-four-seasons-autumn  The Four Seasons: Autumn  The Modena Chamber Orchestra  Classical  3
 ```
 
-## 6. Show album details
+## 5. Show album details
 
-Use `album-maestro show the-four-seasons-autumn` to inspect the album metadata
-and the track ranges cut from the shared source:
+Use `album-maestro show the-four-seasons-autumn` to verify the album metadata and
+the track ranges defined for the shared source:
 
 ```text
 $ album-maestro show the-four-seasons-autumn
@@ -134,3 +121,19 @@ TRACKS
   2  II. Adagio molto                              5:29     8:50
   3  III. Allegro                                  8:50     12:13
 ```
+
+## 6. Process the album
+
+Once the catalog entry looks right, run
+`album-maestro process the-four-seasons-autumn` to create tagged files from the
+single local source:
+
+```text
+$ album-maestro process the-four-seasons-autumn
+[INFO] Processed the-four-seasons-autumn track 1: /Users/you/Music/album-maestro/tracks/The Modena Chamber Orchestra/The Four Seasons: Autumn/I. Allegro.mp3
+[INFO] Processed the-four-seasons-autumn track 2: /Users/you/Music/album-maestro/tracks/The Modena Chamber Orchestra/The Four Seasons: Autumn/II. Adagio molto.mp3
+[INFO] Processed the-four-seasons-autumn track 3: /Users/you/Music/album-maestro/tracks/The Modena Chamber Orchestra/The Four Seasons: Autumn/III. Allegro.mp3
+```
+
+Import the generated files into your preferred music player, such as Apple
+Music or VLC, and play the album to verify the tags, track titles, and timing.
