@@ -18,6 +18,7 @@ particular genre.
 ## Requirements and install
 
 - Python 3.11 or newer
+- [Poetry](https://python-poetry.org/)
 - [FFmpeg](https://ffmpeg.org/), including `ffmpeg` and `ffprobe` on `PATH`,
   when processing audio
 
@@ -25,7 +26,8 @@ particular genre.
 git clone https://github.com/henry-zhao-dev/album-maestro.git
 cd album-maestro
 poetry install
-poetry run album-maestro --help
+eval $(poetry env activate)
+album-maestro --help
 ```
 
 Alternatively, install the project from the repository with
