@@ -75,6 +75,9 @@ tmp/
 *.opus
 *.wav
 *.wma
+!examples/sources/boccherini-minuet.ogg
+!examples/sources/mozart-piano-sonata-no-11-iii.ogg
+!examples/sources/vivaldi-autumn.mp3
 
 # Video files
 *.avi
