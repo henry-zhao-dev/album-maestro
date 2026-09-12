@@ -1,0 +1,25 @@
+{
+  "title": "The Four Seasons: Autumn",
+  "artist": "The Modena Chamber Orchestra",
+  "composer": "Antonio Vivaldi",
+  "genre": "Classical",
+  "url": "https://commons.wikimedia.org/wiki/File:Vivaldi_The_Four_Seasons,_Op._8_-_The_Modena_Chamber_Orchestra_-_Violin_Concerto_in_F_major_RV_293_Autumn.mp3",
+  "file_source": "vivaldi-autumn.mp3",
+  "tracks": [
+    {
+      "title": "I. Allegro",
+      "start": "0:00",
+      "end": "5:29"
+    },
+    {
+      "title": "II. Adagio molto",
+      "start": "5:29",
+      "end": "8:50"
+    },
+    {
+      "title": "III. Allegro",
+      "start": "8:50",
+      "end": "12:13"
+    }
+  ]
+}

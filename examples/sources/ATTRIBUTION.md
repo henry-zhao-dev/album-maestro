@@ -1,40 +1,41 @@
 # Source audio attribution
 
-The linked Wikimedia Commons pages identify these compositions and recordings
-as public domain within the territorial scope and conditions stated on each
-page. Keep the following attribution and source links with the files when
-copying or redistributing them.
+This document records the provenance and rights information stated on the
+source page for each audio file.
 
-- `beethoven-symphony-no-5-i.ogg` — Music: Ludwig van Beethoven, *Symphony
-  No. 5*, I. Allegro con brio. Recording: Skidmore College orchestra. Public
-  domain worldwide as stated on the page. [Wikimedia Commons source](https://commons.wikimedia.org/wiki/File:Ludwig_van_Beethoven_-_symphony_no._5_in_c_minor,_op._67_-_i._allegro_con_brio.ogg)
-- `beethoven-symphony-no-5-ii.ogg` — Music: Ludwig van Beethoven, *Symphony
-  No. 5*, II. Andante con moto. Recording: Skidmore College orchestra. Public
-  domain worldwide as stated on the page. [Wikimedia Commons source](https://commons.wikimedia.org/wiki/File:Ludwig_van_Beethoven_-_symphony_no._5_in_c_minor,_op._67_-_ii._andante_con_moto.ogg)
-- `beethoven-symphony-no-5-iii.ogg` — Music: Ludwig van Beethoven, *Symphony
-  No. 5*, III. Allegro. Recording: Skidmore College orchestra. Public domain
-  worldwide as stated on the page. Musopen attribution requested by the source
-  page: <http://www.musopen.com/faq.html>.
-  [Wikimedia Commons source](https://commons.wikimedia.org/wiki/File:Ludwig_van_Beethoven_-_symphony_no._5_in_c_minor,_op._67_-_iii._allegro.ogg)
-- `beethoven-symphony-no-5-iv.ogg` — Music: Ludwig van Beethoven, *Symphony
-  No. 5*, IV. Allegro. Recording: Skidmore College orchestra. Public domain
-  worldwide as stated on the page.
-  [Wikimedia Commons source](https://commons.wikimedia.org/wiki/File:Ludwig_van_Beethoven_-_symphony_no._5_in_c_minor,_op._67_-_iv._allegro.ogg)
-- `boccherini-minuet.ogg` — Music: Luigi Boccherini, *String Quintet in E
-  Major, Op. 11 No. 5 (G. 275)*, III. Minuet. Played and recorded by Rafael
-  Krux. Made available under the [Creative Commons CC0 1.0 Universal Public
-  Domain Dedication](https://creativecommons.org/publicdomain/zero/1.0/).
-  Source: [freepd.com](https://freepd.com/misc.php). [Wikimedia Commons source](https://commons.wikimedia.org/wiki/File:Boccerini_Op11_n%C2%B05_G275_Satz3_Minuett.ogg)
-- `mozart-piano-sonata-no-11-iii.ogg` — Music: Wolfgang Amadeus Mozart, *Piano
-  Sonata No. 11*, III. Rondo alla turca. Recording: Romuald Greiss. Permission
-  granted by Romuald Greiss; Wikimedia Commons records a verified permission
-  archive entry ([VRT ticket #2007081710004688](https://ticket.wikimedia.org/otrs/index.pl?Action=AgentTicketZoom&TicketNumber=2007081710004688)).
-  The recording is released into the public domain worldwide; the composition
-  has country-specific caveats stated on the page. [Wikimedia Commons source](https://commons.wikimedia.org/wiki/File:Mozart-Marsz_turecki-(Romuald_Greiss).ogg)
+## `vivaldi-autumn.mp3`
 
-The Beethoven pages identify Musopen as the source for all four recordings at
-<http://www.musopen.com/view.php?type=composer&id=23>. They state that Musopen
-uploaders represent and warrant that uploaded content is public domain, while
-Musopen's own copyrighted materials and service are not covered. Movement III
-additionally requests Musopen attribution in articles and in commercial or
-derived works.
+This file contains a recording of Antonio Vivaldi's *The Four Seasons*, Op. 8,
+Concerto No. 3 in F major, RV 293, performed by The Modena Chamber Orchestra.
+The recording is divided into three movements at `0:00`, `5:29`, and `8:50`, as
+specified on the source page.
+
+The file is available from [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Vivaldi_The_Four_Seasons,_Op._8_-_The_Modena_Chamber_Orchestra_-_Violin_Concerto_in_F_major_RV_293_Autumn.mp3), which identifies [Musopen](https://musopen.org/music/14910-the-four-seasons-op-8/) as the source. The Commons page states that the copyright holder has made the file available under the [Creative Commons Public Domain Mark 1.0](https://creativecommons.org/publicdomain/mark/1.0/).
+
+The Public Domain Mark is not a license. It indicates that the copyright
+holder has identified the work as being in the public domain. The Commons page
+also distinguishes this recording from Musopen's own copyrighted materials and
+services.
+
+## `boccherini-minuet.ogg`
+
+This file contains the third movement, Minuet, of Luigi Boccherini's *String
+Quintet in E Major*, Op. 11 No. 5 (G. 275). The recording was performed and
+recorded by Rafael Krux.
+
+The file is available from [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Boccerini_Op11_n%C2%B05_G275_Satz3_Minuett.ogg), which identifies [freepd.com](https://freepd.com/misc.php) as the source. The Commons page makes the file available under the [Creative Commons CC0 1.0 Universal Public Domain Dedication](https://creativecommons.org/publicdomain/zero/1.0/). Under that dedication, the associated rights are waived worldwide to the extent permitted by law, and the work may be copied, modified, distributed, and performed, including for commercial purposes, without requesting permission.
+
+## `mozart-piano-sonata-no-11-iii.ogg`
+
+This file contains the third movement, Rondo alla turca, from Wolfgang Amadeus
+Mozart's Piano Sonata No. 11 in A major, K. 331. The recording was performed by
+Romuald Greiss on a Budynowicz piano dating from 1850, during a concert in
+Zabrze.
+
+The source is identified on [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Mozart-Marsz_turecki-(Romuald_Greiss).ogg) as an email from Bechstein, which obtained the recording directly from the performing pianist. Permission to reuse the recording was granted by Romuald Greiss. The Wikimedia Foundation records the corresponding confirmation in its Volunteer Response Team archive under [ticket #2007081710004688](https://ticket.wikimedia.org/otrs/index.pl?Action=AgentTicketZoom&TicketNumber=2007081710004688).
+
+The Commons page states that the recording was released into the public domain
+worldwide by Romuald Greiss. Where such a dedication is not legally possible,
+the page records his grant of permission to use the recording for any purpose,
+without conditions except those required by law. The page separately notes that
+the composition's public-domain status may vary by jurisdiction.
