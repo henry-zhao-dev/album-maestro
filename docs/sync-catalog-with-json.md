@@ -27,6 +27,14 @@ interactive prompt does not edit them yet.
 
 ## Run the examples
 
+From the repository checkout, install the dependencies and activate Poetry's
+environment once:
+
+```shell
+poetry install
+eval $(poetry env activate)
+```
+
 From the repository root, create a library and copy the example audio into it:
 
 ```shell

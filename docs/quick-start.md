@@ -7,6 +7,14 @@ committed source recording and the three movement ranges defined in
 The source file and its attribution are in
 [`examples/sources/`](../examples/sources/).
 
+From the repository checkout, install the dependencies and activate Poetry's
+environment once:
+
+```shell
+poetry install
+eval $(poetry env activate)
+```
+
 ## 1. Create a library
 
 From the repository checkout, create a library and copy the committed Vivaldi
@@ -27,8 +35,10 @@ no tracks:
 ```text
 $ album-maestro create
 Album title: The Four Seasons: Autumn
-...
+Album artist (optional): The Modena Chamber Orchestra
+Album composer (optional): Antonio Vivaldi
 Album genre: Classical
+Album reference URL (optional):
 Album file source (filename under sources/, optional): vivaldi-autumn.mp3
 
 Album created: the-four-seasons-autumn
@@ -45,9 +55,10 @@ The album has no tracks yet. Use 'edit' to add tracks.
 ## 3. Add tracks
 
 Run `album-maestro edit the-four-seasons-autumn` to add, change, or remove
-tracks. Each track leaves its local source blank so it inherits the album's
-single source recording. Enter source paths as bare filenames; they must already
-exist in the library's `sources/` directory.
+tracks. The tracks inherit the album-level artist and composer, and leave their
+local source blank so they inherit the album's single source recording. Enter
+source paths as bare filenames; they must already exist in the library's
+`sources/` directory.
 
 ```text
 $ album-maestro edit the-four-seasons-autumn
