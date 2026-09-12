@@ -18,7 +18,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     arguments = list(argv) if argv is not None else sys.argv[1:]
     parser = argparse.ArgumentParser(
         prog="album-maestro",
-        description="Turn recordings into albums you can keep and play.",
+        description="Turn recordings into albums you can browse and play.",
     )
     commands = parser.add_subparsers(dest="command", metavar="COMMAND", required=True)
 

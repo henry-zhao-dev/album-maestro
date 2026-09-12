@@ -19,7 +19,8 @@ class HelpTests(unittest.TestCase):
             result = main([])
         self.assertEqual(result, 0)
         self.assertIn(
-            "Turn recordings into albums you can keep and play.", output.getvalue()
+            "Turn recordings into albums you can browse and play.",
+            output.getvalue(),
         )
         self.assertIn("Initialize a library directory.", output.getvalue())
         self.assertIn("Create an album interactively.", output.getvalue())

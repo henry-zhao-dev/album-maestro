@@ -70,9 +70,7 @@ class AlbumTests(unittest.TestCase):
 
         tracks = album.requests()
 
-        self.assertEqual(
-            album.resolved_album_artist(), "Skidmore College Orchestra"
-        )
+        self.assertEqual(album.resolved_album_artist(), "Skidmore College Orchestra")
         self.assertEqual(tracks[0].url, "https://example.com/full")
         self.assertEqual(tracks[0].artist, "Skidmore College Orchestra")
         self.assertEqual(tracks[0].composer, "Ludwig van Beethoven")
