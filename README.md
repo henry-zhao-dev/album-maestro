@@ -35,6 +35,11 @@ Alternatively, install the project from the repository with
 FFmpeg with `brew install ffmpeg` on macOS or `sudo apt install ffmpeg` on
 Debian and Ubuntu.
 
+Docker is an optional alternative when you want Python, Poetry, and FFmpeg
+provided by the same image. The image runs the CLI against a library directory
+mounted at `/library`; it does not store the catalog or audio inside the image.
+See [`docs/docker.md`](docs/docker.md) for the build and run commands.
+
 ## Quick start
 
 A library is the directory created by `init`. It contains the catalog and the
