@@ -78,6 +78,28 @@ class ProcessCommandTests(unittest.TestCase):
         self.assertEqual(result, 1)
 
 
+class ExportCommandTests(unittest.TestCase):
+    def test_export_rejects_album_references_with_all(self):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir) / "library"
+            Library(root=root, name="Music").initialize()
+            output_dir = Path(temporary_dir) / "albums"
+
+            result = main(
+                [
+                    "export",
+                    "album",
+                    "--all",
+                    "--directory",
+                    str(output_dir),
+                    "--library",
+                    str(root),
+                ]
+            )
+
+        self.assertEqual(result, 1)
+
+
 class ImportCommandTests(unittest.TestCase):
     def test_imports_one_json_album_into_sqlite(self):
         with tempfile.TemporaryDirectory() as temporary_dir:

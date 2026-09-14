@@ -30,15 +30,29 @@ eval $(poetry env activate)
 album-maestro --help
 ```
 
-Alternatively, install the project from the repository with
-`python -m pip install .` and use the `album-maestro` command directly. Install
-FFmpeg with `brew install ffmpeg` on macOS or `sudo apt install ffmpeg` on
-Debian and Ubuntu.
+Install FFmpeg with `brew install ffmpeg` on macOS or `sudo apt install ffmpeg`
+on Debian and Ubuntu.
+
+### Docker installation
 
 Docker is an optional alternative when you want Python, Poetry, and FFmpeg
 provided by the same image. The image runs the CLI against a library directory
 mounted at `/library`; it does not store the catalog or audio inside the image.
-See [`docs/docker.md`](docs/docker.md) for the build and run commands.
+
+From the repository checkout, build the image once and run commands against a
+host library mounted at `/library`:
+
+```shell
+docker build --tag album-maestro:local .
+docker run --rm \
+  --volume "$HOME/Music/album-maestro:/library" \
+  album-maestro:local --help
+```
+
+Inside the container, the mounted host directory is always `/library`, so the
+CLI does not need a host-specific `--library` path. For initialization, source
+audio, interactive commands, batch processing, ownership, and volume details,
+see the complete [`docs/docker.md`](docs/docker.md) workflow.
 
 ## Quick start
 
