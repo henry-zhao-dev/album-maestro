@@ -1,0 +1,23 @@
+.git
+.github
+.idea
+.agents
+.codex
+
+__pycache__
+*.py[cod]
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.venv
+build
+dist
+*.egg-info
+
+# The image receives user libraries through /library at runtime. Do not send
+# local catalog or media files as build context.
+album-maestro.db
+sources/
+tracks/
+examples/sources/*.mp3
+examples/sources/*.ogg

@@ -6,21 +6,44 @@ enthusiast, I find this especially noticeable. A symphony, sonata, or recital
 may contain several movements that listeners expect to find, name, and play
 separately.
 
-Album Maestro is a local Python command-line tool for turning those recordings
-into player-friendly albums. You describe an album built from one or more source
-recordings, including compilations with different artists per track. The details
-live in a searchable SQLite catalog, where album-level values provide defaults
-and individual tracks can override them. When you are ready, the tool uses that
-catalog to produce tagged files that ordinary music players can browse. Source
-files remain in the library you choose, and the project is not tied to a
+Album Maestro turns those recordings into player-friendly albums. You provide
+the album and track details—even for multi-movement recordings or compilations
+with different artists—and it creates separate, tagged files that ordinary
+music players can browse. It works with local audio files and is not tied to a
 particular genre.
 
-## Requirements and install
+## Requirements and installation
+
+Docker is the primary way to run Album Maestro. The project image supplies
+Python, Poetry, Album Maestro, FFmpeg, and `ffprobe` together.
+
+### Docker setup
+
+From the repository checkout, build the image and verify the CLI:
+
+```shell
+docker build --tag album-maestro:local .
+./scripts/install-docker-cli
+export PATH="$HOME/.local/bin:$PATH"
+album-maestro --help
+```
+
+The installer places a small Docker launcher in `~/.local/bin`. If that
+directory is not already on `PATH`, add the exported line to your shell
+profile. The launcher mounts `~/Music/album-maestro` by default; set
+`ALBUM_MAESTRO_LIB` to mount another host directory.
+
+The complete workflow covers library initialization, source audio, interactive
+commands, batch processing, ownership, and volumes in
+[`docs/quick-start.md`](docs/quick-start.md).
+
+### Manual installation fallback
+
+If Docker is unavailable, install the runtime dependencies directly:
 
 - Python 3.11 or newer
 - [Poetry](https://python-poetry.org/)
-- [FFmpeg](https://ffmpeg.org/), including `ffmpeg` and `ffprobe` on `PATH`,
-  when processing audio
+- [FFmpeg](https://ffmpeg.org/), including `ffmpeg` and `ffprobe` on `PATH`
 
 ```shell
 git clone https://github.com/henry-zhao-dev/album-maestro.git
@@ -30,87 +53,39 @@ eval $(poetry env activate)
 album-maestro --help
 ```
 
-Alternatively, install the project from the repository with
-`python -m pip install .` and use the `album-maestro` command directly. Install
-FFmpeg with `brew install ffmpeg` on macOS or `sudo apt install ffmpeg` on
-Debian and Ubuntu.
+Install FFmpeg with `brew install ffmpeg` on macOS or `sudo apt install ffmpeg`
+on Debian and Ubuntu.
 
-## Quick start
+## See it in action
 
-A library is the directory created by `init`. It contains the catalog and the
-local audio files used for processing:
-
-- `album-maestro.db` is the SQLite database that stores the library catalog.
-- `sources/` is the directory for local audio files. A `file_source` points to
-  a file in this directory.
-
-Start by creating a library:
+Album Maestro turns a long local recording into a browsable, tagged album. The
+typical workflow is:
 
 ```shell
-album-maestro init ~/Music/album-maestro
-```
-
-This creates:
-
-```text
-~/Music/album-maestro/
-├── album-maestro.db
-└── sources/
-```
-
-Put permitted source files in `sources/`, then change into the library
-directory. The commands below use the current directory as their library:
-
-```shell
-cd ~/Music/album-maestro
 album-maestro create
-album-maestro edit ALBUM
-album-maestro process ALBUM
+album-maestro edit the-four-seasons-autumn
+album-maestro list
+album-maestro process the-four-seasons-autumn
 ```
 
-For a complete interactive walkthrough, see
-[`docs/quick-start.md`](docs/quick-start.md). It uses a single source recording
-and the three movement ranges defined in
-[`examples/albums/vivaldi-autumn.json`](examples/albums/vivaldi-autumn.json).
-The guide includes representative prompts and output.
-
-After processing the album, `album-maestro list` gives a compact summary of its
-entry in the SQLite catalog:
+After processing, the catalog shows one album with three tracks, and the
+player-friendly files are written under `tracks/`:
 
 ```text
 $ album-maestro list
 REFERENCE                TITLE                     ARTIST                        GENRE      TRACKS
 -----------------------  ------------------------  ----------------------------  ---------  ------
 the-four-seasons-autumn  The Four Seasons: Autumn  The Modena Chamber Orchestra  Classical  3
+
+$ album-maestro process the-four-seasons-autumn
+[INFO] Processed .../I. Allegro.mp3
+[INFO] Processed .../II. Adagio molto.mp3
+[INFO] Processed .../III. Allegro.mp3
 ```
 
-To inspect the details behind that row, run `album-maestro show ALBUM`. The command
-prints the album metadata and its tracks, including source timing.
-
-```text
-$ album-maestro show the-four-seasons-autumn
-Title:          The Four Seasons: Autumn
-Artist:         The Modena Chamber Orchestra
-Album artist:   The Modena Chamber Orchestra
-Composer:       Antonio Vivaldi
-Genre:          Classical
-
-Reference URL:  https://musopen.org/music/14910-the-four-seasons-op-8/
-File source:    vivaldi-autumn.mp3
-
-TRACKS
-  #  TITLE                START    END
-  1  I. Allegro           0:00     5:29
-  2  II. Adagio molto     5:29     8:50
-  3  III. Allegro         8:50     12:13
-```
-
-Library commands use the current directory by default. If you run one from
-elsewhere, pass `--library DIRECTORY`, for example:
-
-```shell
-album-maestro list --library ~/Music/album-maestro
-```
+For complete Docker setup, source preparation, interactive prompts, catalog
+inspection, and local processing, see the
+[quick-start guide](docs/quick-start.md).
 
 ## Commands
 

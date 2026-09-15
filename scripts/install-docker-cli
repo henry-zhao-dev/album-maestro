@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+script_directory="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source_script="$script_directory/album-maestro-docker"
+install_directory="${HOME}/.local/bin"
+destination="$install_directory/album-maestro"
+
+mkdir -p "$install_directory"
+
+if [[ -e "$destination" ]] && ! cmp -s "$source_script" "$destination"; then
+  printf 'Refusing to replace an existing command: %s\n' "$destination" >&2
+  printf 'Remove it or choose a different installation location first.\n' >&2
+  exit 1
+fi
+
+install -m 0755 "$source_script" "$destination"
+printf 'Installed Docker launcher: %s\n' "$destination"
+
+case ":${PATH:-}:" in
+  *":$install_directory:"*) ;;
+  *)
+    printf '\nAdd this directory to PATH in your shell profile:\n'
+    printf '  export PATH="$HOME/.local/bin:$PATH"\n'
+    printf '\nThen reload the profile or open a new shell.\n'
+    ;;
+esac

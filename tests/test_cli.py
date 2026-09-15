@@ -54,6 +54,52 @@ class InitCommandTests(unittest.TestCase):
                 )
 
 
+class ProcessCommandTests(unittest.TestCase):
+    def test_process_all_is_accepted_by_the_parser(self):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir) / "library"
+            library = Library(root=root, name="Music")
+            library.initialize()
+            library.create_album(Album(title="Album", genre="Pop", tracks=()))
+
+            result = main(["process", "--all", "--library", str(root)])
+
+        self.assertEqual(result, 0)
+
+    def test_process_rejects_album_references_with_all(self):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir) / "library"
+            Library(root=root, name="Music").initialize()
+
+            result = main(
+                ["process", "album", "--all", "--library", str(root)]
+            )
+
+        self.assertEqual(result, 1)
+
+
+class ExportCommandTests(unittest.TestCase):
+    def test_export_rejects_album_references_with_all(self):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir) / "library"
+            Library(root=root, name="Music").initialize()
+            output_dir = Path(temporary_dir) / "albums"
+
+            result = main(
+                [
+                    "export",
+                    "album",
+                    "--all",
+                    "--directory",
+                    str(output_dir),
+                    "--library",
+                    str(root),
+                ]
+            )
+
+        self.assertEqual(result, 1)
+
+
 class ImportCommandTests(unittest.TestCase):
     def test_imports_one_json_album_into_sqlite(self):
         with tempfile.TemporaryDirectory() as temporary_dir:

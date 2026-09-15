@@ -19,14 +19,16 @@ class ProcessCommand(LibraryCommand):
     help = "Create tagged track files from local source audio."
 
     def configure_arguments(self, parser: argparse.ArgumentParser) -> None:
-        selection = parser.add_mutually_exclusive_group(required=True)
-        selection.add_argument(
+        # argparse does not allow positional arguments in mutually exclusive
+        # groups. Keep the positional selector optional here and validate the
+        # relationship with --all after parsing in run_library().
+        parser.add_argument(
             "album_references",
             nargs="*",
             metavar="ALBUM",
             help="Album reference(s) to process",
         )
-        selection.add_argument(
+        parser.add_argument(
             "--all",
             action="store_true",
             dest="all_albums",
@@ -41,6 +43,10 @@ class ProcessCommand(LibraryCommand):
         )
 
     def run_library(self, library: Library, args: argparse.Namespace) -> int:
+        if args.all_albums and args.album_references:
+            logger.error("Provide album reference(s) or use --all, not both")
+            return 1
+
         references = (
             library.album_references() if args.all_albums else args.album_references
         )

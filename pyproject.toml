@@ -1,6 +1,6 @@
 [project]
 name = "album-maestro"
-version = "0.1.0"
+version = "0.2.0"
 description = "Build organized music libraries from declarative JSON catalogs"
 authors = [
     {name = "Henry Zhao",email = "75873192+henry-zhao-dev@users.noreply.github.com"}

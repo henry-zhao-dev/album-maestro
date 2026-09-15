@@ -7,27 +7,46 @@ committed source recording and the three movement ranges defined in
 The source file and its attribution are in
 [`examples/sources/`](../examples/sources/).
 
-From the repository checkout, install the dependencies and activate Poetry's
-environment once:
+Docker is the primary runtime for this walkthrough. If Docker is unavailable,
+use the manual installation fallback documented in the main
+[`README.md`](../README.md).
+
+## 1. Set up Docker
+
+From the repository checkout, build the image and install the user-level
+launcher:
 
 ```shell
-poetry install
-eval $(poetry env activate)
+docker build --tag album-maestro:local .
+./scripts/install-docker-cli
+export PATH="$HOME/.local/bin:$PATH"
 ```
 
-## 1. Create a library
+Add the `PATH` line to your shell profile if the installer reports that
+`~/.local/bin` is not already on `PATH`. From this point forward, use
+`album-maestro` directly; the launcher handles Docker for every command.
 
-From the repository checkout, create a library and copy the committed Vivaldi
-recording into its `sources/` directory:
+The launcher mounts `~/Music/album-maestro` by default. Export
+`ALBUM_MAESTRO_LIB` to make the host directory explicit, or change its value
+to use another directory:
 
 ```shell
-album-maestro init ~/Music/album-maestro
+export ALBUM_MAESTRO_LIB="$HOME/Music/album-maestro"
+```
+
+## 2. Create a library
+
+Initialize the mounted library, then copy the committed Vivaldi recording into
+its `sources/` directory:
+
+```shell
+album-maestro init .
+mkdir -p "$ALBUM_MAESTRO_LIB/sources"
 cp examples/sources/vivaldi-autumn.mp3 \
-  ~/Music/album-maestro/sources/
-cd ~/Music/album-maestro
+  "$ALBUM_MAESTRO_LIB/sources/"
 ```
 
-## 2. Create an album
+## 3. Create an album
 
 Run `album-maestro create` to enter the album metadata. New albums start with
 no tracks:
@@ -49,10 +68,10 @@ The album has no tracks yet. Use 'edit' to add tracks.
 > elsewhere, pass `--library DIRECTORY`, for example:
 >
 > ```shell
-> album-maestro list --library ~/Music/album-maestro
+> album-maestro list --library /library/another-library
 > ```
 
-## 3. Add tracks
+## 4. Add tracks
 
 Run `album-maestro edit the-four-seasons-autumn` to add, change, or remove
 tracks. The tracks inherit the album-level artist and composer, and leave their
@@ -88,7 +107,7 @@ Added track 3.
 Choose an action: d
 ```
 
-## 4. List the albums
+## 5. List the albums
 
 Run `album-maestro list` for a compact overview of the catalog entry:
 
@@ -99,7 +118,7 @@ REFERENCE                TITLE                     ARTIST                       
 the-four-seasons-autumn  The Four Seasons: Autumn  The Modena Chamber Orchestra  Classical  3
 ```
 
-## 5. Show album details
+## 6. Show album details
 
 Use `album-maestro show the-four-seasons-autumn` to verify the album metadata and
 the track ranges defined for the shared source:
@@ -122,7 +141,7 @@ TRACKS
   3  III. Allegro                                  8:50     12:13
 ```
 
-## 6. Process the album
+## 7. Process the album
 
 Once the catalog entry looks right, run
 `album-maestro process the-four-seasons-autumn` to create tagged files from the

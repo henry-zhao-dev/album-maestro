@@ -1,0 +1,36 @@
+name: Docker image
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-smoke-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build --tag album-maestro:ci .
+
+      - name: Install CLI launcher
+        run: ./scripts/install-docker-cli
+
+      - name: Smoke-test CLI
+        env:
+          ALBUM_MAESTRO_IMAGE: album-maestro:ci
+        run: PATH="$HOME/.local/bin:$PATH" album-maestro --help
+
+      - name: Smoke-test FFmpeg tools
+        run: |
+          docker run --rm --entrypoint sh album-maestro:ci \
+            -c 'command -v ffmpeg && command -v ffprobe && ffmpeg -version >/dev/null && ffprobe -version >/dev/null'

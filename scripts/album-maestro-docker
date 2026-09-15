@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+library_directory="${ALBUM_MAESTRO_LIB:-$HOME/Music/album-maestro}"
+image="${ALBUM_MAESTRO_IMAGE:-album-maestro:local}"
+
+mkdir -p "$library_directory"
+
+docker_arguments=(
+  run
+  --rm
+  --user "$(id -u):$(id -g)"
+  --volume "$library_directory:/library"
+)
+
+if [[ -t 0 && -t 1 ]]; then
+  docker_arguments+=(--interactive --tty)
+fi
+
+exec docker "${docker_arguments[@]}" "$image" "$@"
