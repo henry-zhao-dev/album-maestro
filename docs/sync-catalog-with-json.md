@@ -27,22 +27,25 @@ interactive prompt does not edit them yet.
 
 ## Run the examples
 
-From the repository checkout, install the dependencies and activate Poetry's
-environment once:
+From the repository checkout, complete the Docker setup in
+[`quick-start.md`](quick-start.md). Then select the host library used by the
+launcher:
 
 ```shell
-poetry install
-eval $(poetry env activate)
+export ALBUM_MAESTRO_LIB="$HOME/Music/album-maestro"
 ```
 
-From the repository root, create a library and copy the example audio into it:
+From the repository root, create a library and copy the example audio and JSON
+specifications into it:
 
 ```shell
-album-maestro init ~/Music/album-maestro
+album-maestro init .
+mkdir -p "$ALBUM_MAESTRO_LIB/sources" "$ALBUM_MAESTRO_LIB/specs"
 cp examples/sources/vivaldi-autumn.mp3 \
   examples/sources/boccherini-minuet.ogg \
   examples/sources/mozart-piano-sonata-no-11-iii.ogg \
-  ~/Music/album-maestro/sources/
+  "$ALBUM_MAESTRO_LIB/sources/"
+cp examples/albums/*.json "$ALBUM_MAESTRO_LIB/specs/"
 ```
 
 > The source files are committed, so no download is required. Their licensing
@@ -62,18 +65,17 @@ cp examples/sources/vivaldi-autumn.mp3 \
 Import the Vivaldi example into SQLite with:
 
 ```shell
-album-maestro import --json examples/albums/vivaldi-autumn.json \
-  --library ~/Music/album-maestro
+album-maestro import --json specs/vivaldi-autumn.json
 ```
 
 Verify that the album was loaded into the SQLite catalog:
 
 ```shell
-album-maestro list --library ~/Music/album-maestro
+album-maestro list
 ```
 
 ```text
-$ album-maestro list --library ~/Music/album-maestro
+$ album-maestro list
 REFERENCE                TITLE                     ARTIST                        GENRE      TRACKS
 -----------------------  ------------------------  ----------------------------  ---------  ------
 the-four-seasons-autumn  The Four Seasons: Autumn  The Modena Chamber Orchestra  Classical  3
@@ -82,8 +84,7 @@ the-four-seasons-autumn  The Four Seasons: Autumn  The Modena Chamber Orchestra 
 Or import every example album at once:
 
 ```shell
-album-maestro import --directory examples/albums \
-  --library ~/Music/album-maestro
+album-maestro import --directory specs
 ```
 
 Existing album references are rejected unless `--overwrite` is passed. A
@@ -93,23 +94,20 @@ status if any file could not be imported.
 Process the Vivaldi example into tagged track files:
 
 ```shell
-album-maestro process the-four-seasons-autumn \
-  --library ~/Music/album-maestro
+album-maestro process the-four-seasons-autumn
 ```
 
 Process the Classical Favorites example:
 
 ```shell
-album-maestro process classical-favorites \
-  --library ~/Music/album-maestro
+album-maestro process classical-favorites
 ```
 
 Export an imported album back to JSON with:
 
 ```shell
 album-maestro export the-four-seasons-autumn \
-  --json vivaldi-autumn.json \
-  --library ~/Music/album-maestro
+  --json exported-vivaldi-autumn.json
 ```
 
 Directory exports use `<album-reference>.json`. Existing files are not replaced
