@@ -189,6 +189,28 @@ class ImportCommandTests(unittest.TestCase):
         self.assertEqual(album.artist, "New Artist")
         self.assertEqual([track.title for track in album.tracks], ["Fresh Track"])
 
+    def test_import_directory_recurses_into_subdirectories(self):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir) / "library"
+            Library(root=root, name="Music").initialize()
+            source_dir = Path(temporary_dir) / "albums"
+            nested_dir = source_dir / "classical"
+            nested_dir.mkdir(parents=True)
+            (nested_dir / "album.json").write_text(
+                '{"title":"Nested Album","genre":"Classical",'
+                '"tracks":[{"title":"Opening",'
+                '"url":"https://example.com/source"}]}',
+                encoding="utf-8",
+            )
+
+            result = main(
+                ["import", "--directory", str(source_dir), "--library", str(root)]
+            )
+            album = Library.load(root).load_album("nested-album")
+
+        self.assertEqual(result, 0)
+        self.assertEqual(album.title, "Nested Album")
+
 
 class ProcessCommandTests(unittest.TestCase):
     @patch("album_maestro.commands.process.pipeline.create_track")

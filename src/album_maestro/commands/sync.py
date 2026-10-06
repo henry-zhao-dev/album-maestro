@@ -64,7 +64,7 @@ class ImportCommand(LibraryCommand):
     @classmethod
     def list_json_files(cls, directory: str | Path) -> list[Path]:
         directory = Path(directory)
-        return sorted(directory.glob("*.json"))
+        return sorted(directory.rglob("*.json"))
 
 
 class ExportCommand(LibraryCommand):
