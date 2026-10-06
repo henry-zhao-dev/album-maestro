@@ -25,6 +25,7 @@ class HelpTests(unittest.TestCase):
         self.assertIn("Initialize a library directory.", output.getvalue())
         self.assertIn("Create an album interactively.", output.getvalue())
         self.assertIn("Import album specifications from JSON.", output.getvalue())
+        self.assertIn("Show the Album Maestro version.", output.getvalue())
 
     def test_help_after_command_is_handled_by_command_parser(self):
         for arguments, usage, detail in (
@@ -52,6 +53,17 @@ class InitCommandTests(unittest.TestCase):
                     connection.execute("SELECT name FROM library").fetchone(),
                     ("collection",),
                 )
+
+
+class VersionCommandTests(unittest.TestCase):
+    @patch("album_maestro.commands.version.package_version", return_value="0.2.1")
+    def test_version_prints_installed_package_version(self, _package_version):
+        output = StringIO()
+        with redirect_stdout(output):
+            result = main(["version"])
+
+        self.assertEqual(result, 0)
+        self.assertEqual(output.getvalue(), "0.2.1\n")
 
 
 class ProcessCommandTests(unittest.TestCase):

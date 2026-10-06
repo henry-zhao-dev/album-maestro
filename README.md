@@ -92,6 +92,7 @@ inspection, and local processing, see the
 | Command | Purpose |
 | --- | --- |
 | `init [DIRECTORY]` | Create a library; `--name` sets its name |
+| `version` | Show the installed Album Maestro version |
 | `create` | Create an album interactively |
 | `list` | List albums and track counts |
 | `search` | Search title, artist, composer, and genre |

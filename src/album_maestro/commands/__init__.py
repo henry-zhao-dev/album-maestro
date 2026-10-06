@@ -3,9 +3,11 @@
 from album_maestro.commands import album, process, sync
 from album_maestro.commands.base import Command
 from album_maestro.commands.initialize import InitCommand
+from album_maestro.commands.version import VersionCommand
 
 _registered_commands = (
     InitCommand(),
+    VersionCommand(),
     album.CreateCommand(),
     album.ListCommand(),
     album.SearchCommand(),
