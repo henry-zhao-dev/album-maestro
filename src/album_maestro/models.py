@@ -129,8 +129,9 @@ class Album:
     The album-level ``artist`` is the default track artist and output
     ``album_artist``. It may be absent for compilations. In that case both
     output artist fields use ``Various Artists`` unless a track overrides its
-    own artist. Composer is an independent optional credit and never fills in
-    for artist. Genre is explicit and inherited by tracks unless overridden.
+    own artist. Composer is an independent optional credit at the model level;
+    JSON parsing may use it as the album artist when no artist is supplied.
+    Genre is explicit and inherited by tracks unless overridden.
     """
 
     title: str

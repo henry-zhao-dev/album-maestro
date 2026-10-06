@@ -70,6 +70,8 @@ class AlbumTests(unittest.TestCase):
 
         tracks = album.requests()
 
+        self.assertEqual(album.artist, "Skidmore College Orchestra")
+        self.assertEqual(album.composer, "Ludwig van Beethoven")
         self.assertEqual(album.resolved_album_artist(), "Skidmore College Orchestra")
         self.assertEqual(tracks[0].url, "https://example.com/full")
         self.assertEqual(tracks[0].artist, "Skidmore College Orchestra")
@@ -177,8 +179,9 @@ class AlbumTests(unittest.TestCase):
         self.assertEqual(
             [track.album_artist for track in tracks], ["Various Artists"] * 2
         )
+        self.assertIsNone(album.composer)
 
-    def test_missing_track_artist_also_uses_various_artists(self):
+    def test_composer_becomes_album_artist_when_artist_is_missing(self):
         album = _parse_album(
             {
                 "title": "Composer Collection",
@@ -190,8 +193,9 @@ class AlbumTests(unittest.TestCase):
 
         track = album.requests()[0]
 
-        self.assertEqual(track.artist, "Various Artists")
-        self.assertEqual(track.album_artist, "Various Artists")
+        self.assertEqual(album.artist, "Johann Sebastian Bach")
+        self.assertEqual(track.artist, "Johann Sebastian Bach")
+        self.assertEqual(track.album_artist, "Johann Sebastian Bach")
         self.assertEqual(track.composer, "Johann Sebastian Bach")
         self.assertEqual(track.genre, "Baroque")
 

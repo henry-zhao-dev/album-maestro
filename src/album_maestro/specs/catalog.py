@@ -77,11 +77,14 @@ def _parse_album(data: Any) -> Album:
         except SpecError as error:
             raise SpecError(f"track {index}: {error}") from error
 
+    composer = optional_string(data, "composer")
+    artist = optional_string(data, "artist") or composer
+
     return Album(
         title=required_string(data, "title"),
-        artist=optional_string(data, "artist"),
+        artist=artist,
         tracks=tuple(tracks),
-        composer=optional_string(data, "composer"),
+        composer=composer,
         genre=required_string(data, "genre"),
         url=optional_string(data, "url"),
         file_source=optional_string(data, "file_source"),
